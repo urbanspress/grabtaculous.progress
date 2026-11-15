@@ -1,8 +1,11 @@
 # HANDOFF.md — Grabtaculous
 
-- **Current Owner:** Project Owner / Next Session (`Orchestrator (Argon)` recommended for Layer 3 `gashboard v0.1.0` desktop panel over SSH + cross-layer integration)
-- **Current Milestone State:** **`v0.1.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md) implemented, verified 100%, packaged, and released to `origin` and `stable`)
+- **Current Owner:** Project Owner / Google Antigravity (`grabtaculous v0.1.0` Complete; `v1.0.0` pre-release audit passed & **`GRABTACULOUS-SPEC-100.md`** in Review)
+- **Current Milestone State:**
+  - **`v0.1.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md) implemented, verified 100%, packaged, and released to `origin` and `stable`)
+  - **`v1.0.0` — `Specification in Review`** ([`specifications/GRABTACULOUS-SPEC-100.md`](specifications/GRABTACULOUS-SPEC-100.md), [`docs/ROADMAP.md`](docs/ROADMAP.md))
 - **Pending `v0.1.0` Tasks:** None (`0` pending items).
+- **Pre-`v1.0.0` Audit Status:** Independent Step 5 cross-layer audit passed `100%` (`127.0.0.1:9440` loopback binding, bearer auth, strict `known_hosts` host-key verification, `GRAB-E401` path confinement, `go test -count=1 ./...`, and `govulncheck ./...` with `0` vulnerabilities).
 
 ---
 
@@ -19,6 +22,6 @@
   - `grabtaculous-linux-arm64` (`linux/arm64`, `CGO_ENABLED=0`)
   - `Grabtaculous-v0.1.0-Guide.pdf` (`docs/releases/pdf/Grabtaculous-v0.1.0-Guide.pdf`)
   - `grabtaculous-v0.1.0-bundle.zip` + `SHA256SUMS.txt`
-- **Next Recommended Ecosystem Milestone:**
-  - **Layer 3 of Step 5 — `gashboard v0.1.0`** (`C:\Development\gashboard`): Desktop Control Plane & SSH-Tunneled VPS Commander connecting securely to `grabtaculousd` (`127.0.0.1:9440`) and `grabman v0.1.0`.
-  - Recommended Antigravity model for next step: **`Orchestrator (Argon)`** for coordinating `gashboard` + `grabtaculous` + `grabman` cross-layer SSH/RPC wiring cleanly.
+- **Next Action & Recommended Model After Spec Approval:**
+  - **Pause Gate (`v1.0.0`):** Awaiting explicit project-owner approval of [`specifications/GRABTACULOUS-SPEC-100.md`](specifications/GRABTACULOUS-SPEC-100.md) before freezing `v1.0.0` runtime strings, creating `v1.0.0` tags, or promoting to `stable`.
+  - **Recommended Antigravity Model:** Use **`Google Hydrogen (High)`** for single-repo `v1.0.0` freeze/build verification, or **`Orchestrator (Argon)`** when coordinating the synchronized 3-repo Step 5 `v1.0.0` release across `grabman`, `grabtaculous`, and `gashboard`.

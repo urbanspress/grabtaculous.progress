@@ -36,8 +36,8 @@ Planned Scope:
 
 ## `v1.0.0` — Production Freeze, Hardened Linux Daemon Packages & Full 6-Layer E2E Verification
 
-**Status:** Planned
+**Status:** Specification in Review ([`specifications/GRABTACULOUS-SPEC-100.md`](../specifications/GRABTACULOUS-SPEC-100.md))
 
-Planned Scope:
-- Independent `Orchestrator (Argon)` container-escape, SSH control-channel, rollout drain, and snapshot rollback audit.
-- Signed Linux (`amd64`/`arm64`) & Windows (`amd64`) static binaries, walkthrough PDF, and synchronized `v1.0.0` release on `origin` and `stable`.
+Approved-Spec / Review Scope:
+- Completed pre-`v1.0.0` multi-repository cross-layer audit covering loopback-only daemon binding (`127.0.0.1:9440`), constant-time bearer auth, `known_hosts` host-key pinning, `GRAB-E401` (`GRABTAC-E201`) path confinement, zero-shell argv invocation, zero-downtime `Grisp` drain/rollback, and `go test -count=1 ./...` / `govulncheck ./...` (`0` vulnerabilities) (`specifications/GRABTACULOUS-SPEC-100.md`).
+- Pending explicit owner approval of `specifications/GRABTACULOUS-SPEC-100.md`: freeze `v1.0.0` CLI/daemon contracts, build static Linux (`amd64`/`arm64`) & Windows (`amd64`) binaries, generate walkthrough PDF, and synchronize `v1.0.0` promotion to `origin` and `stable`.
