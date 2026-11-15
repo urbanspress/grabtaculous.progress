@@ -1,32 +1,24 @@
 # HANDOFF.md — Grabtaculous
 
-- **Current Owner:** Google Antigravity (`Google Hydrogen (XHigh)` — Bootstrap & `v0.1.0` Specification Drafted; awaiting explicit project-owner approval before any implementation code is written)
-- **Current Milestone State:** **`v0.1.0` — `Specification in Review`** ([`specifications/GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md)) — Zero Go application code written yet per Spec-First Approval Gate.
-- **Next Action:** Project owner reviews `specifications/GRABTACULOUS-SPEC-001.md` (alongside `GRABMAN-SPEC-001.md` and `GASHBOARD-SPEC-001.md`).
+- **Current Owner:** Project Owner / Next Session (`Orchestrator (Argon)` recommended for Layer 3 `gashboard v0.1.0` desktop panel over SSH + cross-layer integration)
+- **Current Milestone State:** **`v0.1.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md) implemented, verified 100%, packaged, and released to `origin` and `stable`)
+- **Pending `v0.1.0` Tasks:** None (`0` pending items).
 
 ---
 
-## Frozen Upstream Contracts (Unmodified)
-- **GRAB:** `v1.1.0` (`urbanspress/grab`)
-- **Grex JS:** `v1.0.0` (`urbanspress/grex-js`)
-- **GrabLab CMS:** `v1.0.1` (`urbanspress/grablab-cms`)
-- **Grex Theme Builder:** `v1.0.0` (`urbanspress/grex-builder`)
-- **Groxy AI:** `v1.0.0` (`urbanspress/groxy-ai`)
-
----
-
-## Bootstrap Completion Log (Pre-Implementation)
-1. Initialized twin GitHub repositories: `urbanspress/grabtaculous.progress` (`origin`) and `urbanspress/grabtaculous.stable` (`stable`).
-2. Added governance and documentation baseline:
-   - `AGENTS.md` (4-tier model routing, Mandatory Pause & Swap Rule, `sync-notebook-sources.ps1` rule, SemVer + 6-Layer Ecosystem Compatibility Matrix)
-   - `GRABTACULOUS-EXPERT.md`
-   - `docs/ROADMAP.md`
-   - `README.md` with committed emerald `#10B981` SVG badges (`docs/badges/*.svg`)
-   - `LICENSE` (MIT) and `.gitignore`
-3. Drafted [`specifications/GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md) covering the multi-server supervisor daemon, `--read-only` container orchestrator, curated 1-click app marketplace catalog, zero-downtime `Grisp` rollouts, and pre-deploy snapshot rollbacks.
-
----
-
-## Next Step Model Guidance
-- **Recommended Model for Reviewing/Refining Spec:** **`Google Hydrogen (Medium)`** if you want edits or refinements to `GRABTACULOUS-SPEC-001.md`.
-- **Recommended Model Once Spec Is Approved:** **`Google Hydrogen (Extra)`** to implement Grabtaculous's multi-server orchestration, `--read-only` container generator, zero-downtime `Grisp` rollout controller, and snapshot rollback state machine, pausing before pre-`v1.0.0` security & rollout audits to switch to **`Orchestrator (Argon)`** for an independent second-opinion audit.
+## `v0.1.0` Verification & Release Summary
+- **Pure Go Stdlib / Zero External Dependencies (`CGO_ENABLED=0`):**
+  - `go build ./...`: `PASS` (clean)
+  - `go vet ./...`: `PASS` (clean)
+  - `go test -count=1 ./...`: `PASS` (`100%` pass across container hardening, edge proxies, SHA-256 catalog tamper detection, stealth loopback daemon + CLI end-to-end, `/_ready`-gated zero-downtime `Grisp` rolling swaps, live `GRAB v1.1.0` + `grabman v0.1.0` preflight/migrate/auto-rollback, and Pre-Deploy Snapshot restore)
+  - `go mod verify`: `all modules verified`
+  - `govulncheck ./...` (`go1.27.4`): `No vulnerabilities found.`
+- **Deliverables & Static Release Assets:**
+  - `grabtaculous-windows-amd64.exe` (`windows/amd64`, `CGO_ENABLED=0`)
+  - `grabtaculous-linux-amd64` (`linux/amd64`, `CGO_ENABLED=0`)
+  - `grabtaculous-linux-arm64` (`linux/arm64`, `CGO_ENABLED=0`)
+  - `Grabtaculous-v0.1.0-Guide.pdf` (`docs/releases/pdf/Grabtaculous-v0.1.0-Guide.pdf`)
+  - `grabtaculous-v0.1.0-bundle.zip` + `SHA256SUMS.txt`
+- **Next Recommended Ecosystem Milestone:**
+  - **Layer 3 of Step 5 — `gashboard v0.1.0`** (`C:\Development\gashboard`): Desktop Control Plane & SSH-Tunneled VPS Commander connecting securely to `grabtaculousd` (`127.0.0.1:9440`) and `grabman v0.1.0`.
+  - Recommended Antigravity model for next step: **`Orchestrator (Argon)`** for coordinating `gashboard` + `grabtaculous` + `grabman` cross-layer SSH/RPC wiring cleanly.

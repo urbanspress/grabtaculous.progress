@@ -1,0 +1,69 @@
+{
+  "schema_version": "0.1.0",
+  "id": "postgres-18",
+  "name": "PostgreSQL 18 (Private Internal & SSH-Tunnel Store)",
+  "category": "datastore",
+  "version": "18.1",
+  "summary": "Hardened PostgreSQL 18 database bound strictly to private internal network and 127.0.0.1 loopback for SSH-tunneled Gashboard administration.",
+  "recommended_edge_proxy": "caddy",
+  "required_variables": [
+    {
+      "name": "POSTGRES_PASSWORD",
+      "description": "PostgreSQL superuser password injected via runtime secret manager",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "POSTGRES_USER",
+      "description": "Database application role name",
+      "required": false,
+      "default": "grablab"
+    },
+    {
+      "name": "POSTGRES_DB",
+      "description": "Primary database schema name",
+      "required": false,
+      "default": "grablab"
+    }
+  ],
+  "stack": {
+    "stack_name": "postgres-18",
+    "edge_proxy": "caddy",
+    "services": [
+      {
+        "name": "postgres-18",
+        "image": "docker.io/library/postgres:18.1-alpine@sha256:1b42c8f7d9042cb2092ef08a80fc2f48e1a9d988743934bc05543e2ea2c11801",
+        "container_name": "grabtac-postgres-18",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": [
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "/var/run/postgresql:rw,noexec,nosuid,size=16m"
+        ],
+        "ports": ["127.0.0.1:${POSTGRES_LOOPBACK_PORT:-5432}:5432"],
+        "volumes": [
+          "postgres-18-data:/var/lib/postgresql/data:rw"
+        ],
+        "networks": ["grabtac_internal"],
+        "environment": {
+          "PGDATA": "/var/lib/postgresql/data/pgdata",
+          "POSTGRES_DB": "${POSTGRES_DB:-grablab}",
+          "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or secret manager}",
+          "POSTGRES_USER": "${POSTGRES_USER:-grablab}"
+        },
+        "healthcheck": {
+          "test": ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-grablab} -h 127.0.0.1 || exit 1"],
+          "interval": "15s",
+          "timeout": "5s",
+          "retries": 5,
+          "start_period": "15s"
+        },
+        "restart": "unless-stopped",
+        "is_data_store": true
+      }
+    ],
+    "volumes": ["postgres-18-data"]
+  }
+}

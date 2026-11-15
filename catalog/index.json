@@ -1,0 +1,96 @@
+{
+  "schema_version": "0.1.0",
+  "curated": true,
+  "blueprints": [
+    {
+      "id": "grablab-grex-bundle",
+      "name": "GrabLab CMS + Grex Theme Builder",
+      "category": "ecosystem",
+      "version": "1.0.1",
+      "summary": "Pre-wired GrabLab CMS v1.0.1 with exclusive mode: visual Grex Theme Builder v1.0.0 and shared /static/grex/ asset mount behind --read-only containers.",
+      "manifest_path": "grablab-grex-bundle.json",
+      "sha256": "3b3e38f732619aa96026d90a68ef41d8ea9c43fc513322f89dbb7ffe3d7c9d92"
+    },
+    {
+      "id": "grablab-full-stack",
+      "name": "GrabLab CMS + Grex Theme Builder + Groxy AI",
+      "category": "ecosystem",
+      "version": "1.0.0",
+      "summary": "Complete 4-layer autonomous publishing stack pairing GrabLab CMS v1.0.1, Grex Theme Builder v1.0.0, and Groxy AI v1.0.0 over strict internal --allow-net allowlists.",
+      "manifest_path": "grablab-full-stack.json",
+      "sha256": "290102d47418504bb8cb8af815bc175a6213bcc32d77fe667e1aa0967e2b9c68"
+    },
+    {
+      "id": "grab-grisp-app",
+      "name": "Standalone GRAB Grisp Application",
+      "category": "runtime",
+      "version": "1.1.0",
+      "summary": "Hardened standalone GRAB v1.1.0 Grisp multi-worker application stack (--read-only rootfs, non-root UID 65532, loopback worker pool 127.0.0.1:8765-8768, /_ready probes).",
+      "manifest_path": "grab-grisp-app.json",
+      "sha256": "168983c67c2f48696289db5d2eaecd1612f15d840788086c227836caa6c4568f"
+    },
+    {
+      "id": "postgres-18",
+      "name": "PostgreSQL 18 (Private Internal & SSH-Tunnel Store)",
+      "category": "datastore",
+      "version": "18.1",
+      "summary": "Hardened PostgreSQL 18 database bound strictly to private internal network and 127.0.0.1 loopback for SSH-tunneled Gashboard administration.",
+      "manifest_path": "companions/postgres-18.json",
+      "sha256": "af4c84cc69ea7aa0912bfe25b7f023c1b1b5df7de3e2fd7fe3ff0bf08ce68077"
+    },
+    {
+      "id": "mariadb-11-8",
+      "name": "MariaDB 11.8 LTS (Private Internal & SSH-Tunnel Store)",
+      "category": "datastore",
+      "version": "11.8.1",
+      "summary": "Hardened MariaDB 11.8 LTS relational datastore isolated on private internal network and 127.0.0.1 loopback only.",
+      "manifest_path": "companions/mariadb-11-8.json",
+      "sha256": "81f661d5f896ccdc90fc5844129cbb05c4c0e8cdb2201789f10fc945d8159acd"
+    },
+    {
+      "id": "redis-standalone",
+      "name": "Redis Standalone (Private Loopback Cache & Channel Store)",
+      "category": "datastore",
+      "version": "7.4.2",
+      "summary": "Password-protected Redis cache and queue store hardened with --read-only rootfs and bound exclusively to private internal network and 127.0.0.1.",
+      "manifest_path": "companions/redis-standalone.json",
+      "sha256": "37866db482eff32f2aad219ee7aa54deb3b9e5430aa213c30ea9ba3d67d1d7f3"
+    },
+    {
+      "id": "analytics",
+      "name": "Privacy Web Analytics (Self-Hosted)",
+      "category": "companion",
+      "version": "2.17.0",
+      "summary": "Cookieless privacy-respecting web analytics service running --read-only behind Caddy edge TLS on 127.0.0.1 loopback.",
+      "manifest_path": "companions/analytics.json",
+      "sha256": "cb2b89a993ec50d43521c13bf1e9e5e7c9f460b16c1cac1c42819628fc4f551a"
+    },
+    {
+      "id": "object-storage",
+      "name": "S3 Object Storage (Self-Hosted)",
+      "category": "companion",
+      "version": "1.1.0",
+      "summary": "Lightweight S3-compatible media and snapshot object store running --read-only on non-root UID 65532 with loopback-pinned endpoints.",
+      "manifest_path": "companions/object-storage.json",
+      "sha256": "dcfec7d10a63faaa79ebff142251adac3d8395078011abf71a2351e44220225e"
+    },
+    {
+      "id": "automation",
+      "name": "Workflow Automation Runner (Self-Hosted)",
+      "category": "companion",
+      "version": "1.82.3",
+      "summary": "Self-hosted webhook & background workflow runner hardened with --read-only rootfs, cap_drop ALL, non-root UID 65532, and loopback-only publishing.",
+      "manifest_path": "companions/automation.json",
+      "sha256": "2de4cf2928e9c0b2d26dd55fad333d7ae97f7b1609c174b5b4463ba60e836e31"
+    },
+    {
+      "id": "webmail",
+      "name": "Webmail Client (Self-Hosted)",
+      "category": "companion",
+      "version": "1.6.10",
+      "summary": "Hardened self-hosted webmail client running --read-only under UID 65532 behind edge HTTPS on 127.0.0.1 loopback.",
+      "manifest_path": "companions/webmail.json",
+      "sha256": "6b9b95bfe90533f4b571f29cc2287fb8df0f3d1a15d060f10eb78de93e8cfe86"
+    }
+  ]
+}

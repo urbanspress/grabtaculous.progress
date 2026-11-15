@@ -1,0 +1,210 @@
+{
+  "schema_version": "0.1.0",
+  "id": "grablab-full-stack",
+  "name": "GrabLab CMS + Grex Theme Builder + Groxy AI",
+  "category": "ecosystem",
+  "version": "1.0.0",
+  "summary": "Complete 4-layer autonomous publishing stack pairing GrabLab CMS v1.0.1, Grex Theme Builder v1.0.0, and Groxy AI v1.0.0 over strict internal --allow-net allowlists.",
+  "recommended_edge_proxy": "caddy",
+  "ecosystem_layers": {
+    "grab": "1.1.0",
+    "grex-js": "1.0.0",
+    "grablab-cms": "1.0.1",
+    "grex-builder": "1.0.0",
+    "groxy-ai": "1.0.0"
+  },
+  "required_variables": [
+    {
+      "name": "GRABLAB_MASTER_KEY",
+      "description": "32+ byte signing and session encryption secret for GrabLab CMS",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "GROXY_PROVIDER_API_KEY",
+      "description": "Optional provider API key when using external vision/LLM providers (leave blank for local Ollama/deterministic mode)",
+      "required": false,
+      "secret": true
+    },
+    {
+      "name": "GRABLAB_PORT",
+      "description": "Loopback port published on 127.0.0.1 for GrabLab CMS",
+      "required": false,
+      "default": "8765"
+    },
+    {
+      "name": "GREX_STUDIO_PORT",
+      "description": "Loopback port published on 127.0.0.1 for Grex Theme Builder",
+      "required": false,
+      "default": "8766"
+    },
+    {
+      "name": "GROXY_PORT",
+      "description": "Loopback port published on 127.0.0.1 for Groxy AI",
+      "required": false,
+      "default": "8767"
+    }
+  ],
+  "stack": {
+    "stack_name": "grablab-full-stack",
+    "edge_proxy": "caddy",
+    "services": [
+      {
+        "name": "grablab-cms",
+        "image": "ghcr.io/urbanspress/grablab-cms:v1.0.1@sha256:6b212cf89c4d19129f6d4a3c749e1611bb279f7de0e0d4aa0b0b91f0b17f1001",
+        "container_name": "grablab-cms",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:rw,noexec,nosuid,size=64m"],
+        "ports": ["127.0.0.1:${GRABLAB_PORT:-8765}:8080"],
+        "working_dir": "/app",
+        "volumes": [
+          "grablab-storage:/app/storage:rw",
+          "grablab-uploads:/app/uploads:rw",
+          "shared-grex:/app/public/grex:rw",
+          "./theme:/app/themes/grex-builder:ro",
+          "./public/theme:/app/public/themes/grex-builder:ro"
+        ],
+        "networks": ["grabtac_loopback", "grabtac_internal"],
+        "environment": {
+          "GRABLAB_MASTER_KEY": "${GRABLAB_MASTER_KEY:?Set GRABLAB_MASTER_KEY in .env or secret manager}",
+          "GRABLAB_MAX_UPLOAD_BYTES": "${GRABLAB_MAX_UPLOAD_BYTES:-10485760}",
+          "GRABLAB_TRUSTED_PROXY": "127.0.0.1",
+          "GRABLAB_UPLOAD_DIR": "/app/uploads",
+          "GRABLAB_VISUAL_MODE": "true"
+        },
+        "command": [
+          "grab", "serve",
+          "--addr", "0.0.0.0:8080",
+          "--allow-public",
+          "--allow-scripts",
+          "--diagnostics", "production",
+          "--log-format", "json",
+          "--trusted-proxy", "127.0.0.1",
+          "--allow-read", "/app",
+          "--allow-write", "/app/uploads",
+          "--allow-env", "GRABLAB_MASTER_KEY,GRABLAB_UPLOAD_DIR,GRABLAB_MAX_UPLOAD_BYTES",
+          "--db-config", "/app/grab.data.json",
+          "--allow-db", "main:read-write",
+          "--platform-config", "/app/grab.platform.json",
+          "--allow-cache", "cms:read-write",
+          "--allow-cache", "cms:limit",
+          "--static", "/app/public",
+          "/app/src/app.grab"
+        ],
+        "healthcheck": {
+          "test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/_ready || exit 1"],
+          "interval": "15s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "10s"
+        },
+        "restart": "unless-stopped"
+      },
+      {
+        "name": "grex-builder-studio",
+        "image": "ghcr.io/urbanspress/grex-builder:v1.0.0@sha256:9f4b23c421a4b1f079a96f8cc03ab31bc10d409e413bcbb52d0a9e77101f1000",
+        "container_name": "grex-builder-studio",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:rw,noexec,nosuid,size=64m"],
+        "ports": ["127.0.0.1:${GREX_STUDIO_PORT:-8766}:8080"],
+        "working_dir": "/app",
+        "volumes": [
+          "builder-storage:/app/storage:rw",
+          "shared-grex:/app/public/grex:rw"
+        ],
+        "networks": ["grabtac_loopback", "grabtac_internal"],
+        "environment": {
+          "GREX_DESIGN_SYSTEM_PATH": "/app/storage/GRAB-DESIGN-SYSTEM.md",
+          "GREX_STATIC_DIR": "/app/public/grex",
+          "GREX_TRUSTED_PROXY": "127.0.0.1"
+        },
+        "command": [
+          "grab", "serve",
+          "--addr", "0.0.0.0:8080",
+          "--allow-public",
+          "--allow-scripts",
+          "--diagnostics", "production",
+          "--log-format", "json",
+          "--trusted-proxy", "127.0.0.1",
+          "--allow-read", "/app",
+          "--allow-write", "/app/public/grex",
+          "--allow-write", "/app/storage",
+          "--allow-env", "GREX_STATIC_DIR,GREX_DESIGN_SYSTEM_PATH",
+          "--db-config", "/app/grab.data.json",
+          "--allow-db", "main:read-write",
+          "--platform-config", "/app/grab.platform.json",
+          "--allow-cache", "studio:read-write",
+          "--static", "/app/public",
+          "/app/src/studio.grab"
+        ],
+        "healthcheck": {
+          "test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/_ready || exit 1"],
+          "interval": "15s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "10s"
+        },
+        "restart": "unless-stopped"
+      },
+      {
+        "name": "groxy-ai",
+        "image": "ghcr.io/urbanspress/groxy-ai:v1.0.0@sha256:c31e86342a9573f05c83cb5a2b51348573b36ab44f82e6cc6fa7a022e88a2000",
+        "container_name": "groxy-ai",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:rw,noexec,nosuid,size=64m"],
+        "ports": ["127.0.0.1:${GROXY_PORT:-8767}:8090"],
+        "working_dir": "/app",
+        "volumes": [
+          "groxy-storage:/app/storage:rw",
+          "groxy-cache:/app/cache:rw"
+        ],
+        "networks": ["grabtac_loopback", "grabtac_internal"],
+        "environment": {
+          "GROXY_ALLOW_NET": "${GROXY_ALLOW_NET:-grablab-cms:8080,grex-builder-studio:8080}",
+          "GROXY_BUILDER_URL": "http://grex-builder-studio:8080",
+          "GROXY_CMS_URL": "http://grablab-cms:8080",
+          "GROXY_PROVIDER_API_KEY": "${GROXY_PROVIDER_API_KEY:-}",
+          "GROXY_SITE_CONTEXT_PATH": "/app/storage/SITE-CONTEXT.md",
+          "GROXY_STORAGE_DIR": "/app/storage",
+          "GROXY_TRUSTED_PROXY": "127.0.0.1"
+        },
+        "command": [
+          "grab", "serve",
+          "--addr", "0.0.0.0:8090",
+          "--allow-public",
+          "--allow-scripts",
+          "--diagnostics", "production",
+          "--log-format", "json",
+          "--trusted-proxy", "127.0.0.1",
+          "--allow-read", "/app",
+          "--allow-write", "/app/storage",
+          "--allow-write", "/app/cache",
+          "--allow-env", "GROXY_STORAGE_DIR,GROXY_SITE_CONTEXT_PATH,GROXY_CMS_URL,GROXY_BUILDER_URL",
+          "--platform-config", "/app/grab.platform.json",
+          "--allow-cache", "groxy:read-write",
+          "--allow-net", "${GROXY_ALLOW_NET:-grablab-cms:8080,grex-builder-studio:8080}",
+          "--static", "/app/public",
+          "/app/src/groxy.grab"
+        ],
+        "healthcheck": {
+          "test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:8090/_ready || exit 1"],
+          "interval": "15s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "10s"
+        },
+        "restart": "unless-stopped"
+      }
+    ],
+    "volumes": ["grablab-storage", "grablab-uploads", "builder-storage", "shared-grex", "groxy-storage", "groxy-cache"]
+  }
+}

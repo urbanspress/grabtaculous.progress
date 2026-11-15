@@ -1,0 +1,58 @@
+{
+  "schema_version": "0.1.0",
+  "id": "analytics",
+  "name": "Privacy Web Analytics (Self-Hosted)",
+  "category": "companion",
+  "version": "2.17.0",
+  "summary": "Cookieless privacy-respecting web analytics service running --read-only behind Caddy edge TLS on 127.0.0.1 loopback.",
+  "recommended_edge_proxy": "caddy",
+  "required_variables": [
+    {
+      "name": "ANALYTICS_APP_SECRET",
+      "description": "Analytics session signing key supplied via secret manager",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "ANALYTICS_DATABASE_URL",
+      "description": "Internal private database connection string referencing runtime secrets",
+      "required": true,
+      "secret": true
+    }
+  ],
+  "stack": {
+    "stack_name": "analytics",
+    "edge_proxy": "caddy",
+    "services": [
+      {
+        "name": "analytics",
+        "image": "ghcr.io/umami-software/umami:postgresql-v2.17.0@sha256:4a9b23c421a4b1f079a96f8cc03ab31bc10d409e413bcbb52d0a9e77101f2170",
+        "container_name": "grabtac-analytics",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:rw,noexec,nosuid,size=64m"],
+        "ports": ["127.0.0.1:${ANALYTICS_PORT:-8768}:3000"],
+        "volumes": [
+          "analytics-data:/app/data:rw"
+        ],
+        "networks": ["grabtac_loopback", "grabtac_internal"],
+        "environment": {
+          "APP_SECRET": "${ANALYTICS_APP_SECRET:?Set ANALYTICS_APP_SECRET in .env or secret manager}",
+          "DATABASE_URL": "${ANALYTICS_DATABASE_URL:?Set ANALYTICS_DATABASE_URL in .env or secret manager}",
+          "DISABLE_TELEMETRY": "1"
+        },
+        "healthcheck": {
+          "test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/heartbeat || exit 1"],
+          "interval": "30s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "15s"
+        },
+        "restart": "unless-stopped"
+      }
+    ],
+    "volumes": ["analytics-data"]
+  }
+}

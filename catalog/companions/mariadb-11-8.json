@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.1.0",
+  "id": "mariadb-11-8",
+  "name": "MariaDB 11.8 LTS (Private Internal & SSH-Tunnel Store)",
+  "category": "datastore",
+  "version": "11.8.1",
+  "summary": "Hardened MariaDB 11.8 LTS relational datastore isolated on private internal network and 127.0.0.1 loopback only.",
+  "recommended_edge_proxy": "caddy",
+  "required_variables": [
+    {
+      "name": "MARIADB_ROOT_PASSWORD",
+      "description": "MariaDB root credential supplied via secret manager",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "MARIADB_PASSWORD",
+      "description": "Application database user password supplied via secret manager",
+      "required": true,
+      "secret": true
+    }
+  ],
+  "stack": {
+    "stack_name": "mariadb-11-8",
+    "edge_proxy": "caddy",
+    "services": [
+      {
+        "name": "mariadb-11-8",
+        "image": "docker.io/library/mariadb:11.8.1@sha256:2f71c8a9d2218c98eb74bc7211100a83a91d7b1e39ce19ab818373a7f244ca4b",
+        "container_name": "grabtac-mariadb-11-8",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": [
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "/run/mysqld:rw,noexec,nosuid,size=16m"
+        ],
+        "ports": ["127.0.0.1:${MARIADB_LOOPBACK_PORT:-3306}:3306"],
+        "volumes": [
+          "mariadb-11-8-data:/var/lib/mysql:rw"
+        ],
+        "networks": ["grabtac_internal"],
+        "environment": {
+          "MARIADB_DATABASE": "${MARIADB_DATABASE:-grablab}",
+          "MARIADB_PASSWORD": "${MARIADB_PASSWORD:?Set MARIADB_PASSWORD in .env or secret manager}",
+          "MARIADB_ROOT_PASSWORD": "${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD in .env or secret manager}",
+          "MARIADB_USER": "${MARIADB_USER:-grablab}"
+        },
+        "healthcheck": {
+          "test": ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized || exit 1"],
+          "interval": "15s",
+          "timeout": "5s",
+          "retries": 5,
+          "start_period": "20s"
+        },
+        "restart": "unless-stopped",
+        "is_data_store": true
+      }
+    ],
+    "volumes": ["mariadb-11-8-data"]
+  }
+}

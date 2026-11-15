@@ -2,11 +2,11 @@
 
 ![Built with GRAB v1.1.0](docs/badges/built-with-grab.svg)
 ![GRAB Ecosystem Step 5 — Grabtaculous](docs/badges/ecosystem-step-5.svg)
-![v0.1.0 Spec — In Review](docs/badges/spec-in-review.svg)
+![Release v0.1.0 — Complete](docs/badges/release-v0.1.0.svg)
 
 **Grabtaculous** is the Multi-Server Supervisor Daemon, `--read-only` Container & 1-Click App Marketplace Orchestrator, Zero-Downtime `Grisp` Rollout Engine, and Pre-Deploy Snapshot Rollback System for **Step 5 of the Post-1.0 GRAB Ecosystem**.
 
-- **Current Status:** `v0.1.0` — **Specification in Review** ([`specifications/GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md) drafted; zero implementation code written pending owner approval).
+- **Current Status:** `v0.1.0` — **Complete & Released** (Plain-English Walkthrough: [`Grabtaculous-v0.1.0-Guide.pdf`](docs/releases/pdf/Grabtaculous-v0.1.0-Guide.pdf) · Spec: [`GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md)).
 - **Development Repo (`origin`):** `https://github.com/urbanspress/grabtaculous.progress`
 - **Production Release Repo (`stable`):** `https://github.com/urbanspress/grabtaculous.stable`
 
@@ -38,11 +38,40 @@
 
 ---
 
+## Quick Start (`v0.1.0`)
+
+Build or install the static zero-dependency binary (`CGO_ENABLED=0`), deploy a hardened `--read-only` stack, audit Compose files, and manage zero-downtime rollouts and atomic snapshot rollbacks:
+
+```bash
+# Build static binary cleanly from source (pure Go stdlib, zero external dependencies)
+CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.Version=0.1.0" -o grabtaculous ./cmd/grabtaculous
+
+# Browse curated 1-click blueprints
+grabtaculous catalog list
+grabtaculous catalog inspect grablab-grex-bundle
+
+# Deploy a locked-down --read-only stack + Caddy automatic HTTPS
+grabtaculous deploy grablab-grex-bundle --dir ./my-site --domain shop.example.com --edge-proxy caddy
+
+# Audit Compose security + run a 6-stage zero-downtime Grisp rollout
+grabtaculous audit --dir ./my-site --require-digest
+grabtaculous rollout --dir ./my-site --entry src/app.grab --migrate-file migrations/001_init.grab
+
+# Inspect snapshots or roll back cleanly in one command
+grabtaculous snapshot list --dir ./my-site
+grabtaculous rollback <deploy-id> --dir ./my-site
+
+# Launch stealth loopback supervisor daemon (never binds public 0.0.0.0)
+grabtaculous daemon --listen 127.0.0.1:9440 --state-dir ./.grabtaculous
+```
+
 ## Governance & Specifications
 
 - [Agent Rules (`AGENTS.md`)](AGENTS.md)
 - [Engineering Invariants (`GRABTACULOUS-EXPERT.md`)](GRABTACULOUS-EXPERT.md)
+- [Plain-English Release Guide (`Grabtaculous-v0.1.0-Guide.pdf`)](docs/releases/pdf/Grabtaculous-v0.1.0-Guide.pdf)
 - [`v0.1.0` Specification (`specifications/GRABTACULOUS-SPEC-001.md`)](specifications/GRABTACULOUS-SPEC-001.md)
 - [Roadmap (`docs/ROADMAP.md`)](docs/ROADMAP.md)
+- [Changelog (`CHANGELOG.md`)](CHANGELOG.md)
 - [Handoff Log (`HANDOFF.md`)](HANDOFF.md)
 - [License (`LICENSE` — MIT)](LICENSE)

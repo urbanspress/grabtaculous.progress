@@ -1,0 +1,57 @@
+{
+  "schema_version": "0.1.0",
+  "id": "redis-standalone",
+  "name": "Redis Standalone (Private Loopback Cache & Channel Store)",
+  "category": "datastore",
+  "version": "7.4.2",
+  "summary": "Password-protected Redis cache and queue store hardened with --read-only rootfs and bound exclusively to private internal network and 127.0.0.1.",
+  "recommended_edge_proxy": "caddy",
+  "required_variables": [
+    {
+      "name": "REDIS_PASSWORD",
+      "description": "Redis AUTH secret supplied via runtime environment or secret manager",
+      "required": true,
+      "secret": true
+    }
+  ],
+  "stack": {
+    "stack_name": "redis-standalone",
+    "edge_proxy": "caddy",
+    "services": [
+      {
+        "name": "redis-standalone",
+        "image": "docker.io/library/redis:7.4.2-alpine@sha256:3c94bc8306fb9125a41c4a9c46022f7136f8d3ab65d03b7a05226a9b3c417402",
+        "container_name": "grabtac-redis",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:rw,noexec,nosuid,size=64m"],
+        "ports": ["127.0.0.1:${REDIS_LOOPBACK_PORT:-6379}:6379"],
+        "volumes": [
+          "redis-data:/data:rw"
+        ],
+        "networks": ["grabtac_internal"],
+        "environment": {
+          "REDIS_PASSWORD": "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env or secret manager}"
+        },
+        "command": [
+          "redis-server",
+          "--appendonly", "yes",
+          "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env or secret manager}",
+          "--dir", "/data"
+        ],
+        "healthcheck": {
+          "test": ["CMD-SHELL", "redis-cli -h 127.0.0.1 ping | grep -q PONG"],
+          "interval": "15s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "5s"
+        },
+        "restart": "unless-stopped",
+        "is_data_store": true
+      }
+    ],
+    "volumes": ["redis-data"]
+  }
+}

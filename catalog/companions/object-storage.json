@@ -1,0 +1,58 @@
+{
+  "schema_version": "0.1.0",
+  "id": "object-storage",
+  "name": "S3 Object Storage (Self-Hosted)",
+  "category": "companion",
+  "version": "1.1.0",
+  "summary": "Lightweight S3-compatible media and snapshot object store running --read-only on non-root UID 65532 with loopback-pinned endpoints.",
+  "recommended_edge_proxy": "caddy",
+  "required_variables": [
+    {
+      "name": "OBJECT_STORAGE_RPC_SECRET",
+      "description": "32-byte hex RPC secret supplied via secret manager",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "OBJECT_STORAGE_ADMIN_TOKEN",
+      "description": "Admin bearer secret supplied via secret manager",
+      "required": true,
+      "secret": true
+    }
+  ],
+  "stack": {
+    "stack_name": "object-storage",
+    "edge_proxy": "caddy",
+    "services": [
+      {
+        "name": "object-storage",
+        "image": "dxflrs/garage:v1.1.0@sha256:5d83b9a84d39f5194c19a473e30fb429d0a041568b5a4e679ef22be182d31100",
+        "container_name": "grabtac-object-storage",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:rw,noexec,nosuid,size=64m"],
+        "ports": ["127.0.0.1:${OBJECT_STORAGE_PORT:-8769}:3900"],
+        "volumes": [
+          "object-storage-meta:/var/lib/garage/meta:rw",
+          "object-storage-data:/var/lib/garage/data:rw"
+        ],
+        "networks": ["grabtac_loopback", "grabtac_internal"],
+        "environment": {
+          "GARAGE_ADMIN_TOKEN": "${OBJECT_STORAGE_ADMIN_TOKEN:?Set OBJECT_STORAGE_ADMIN_TOKEN in .env or secret manager}",
+          "GARAGE_RPC_SECRET": "${OBJECT_STORAGE_RPC_SECRET:?Set OBJECT_STORAGE_RPC_SECRET in .env or secret manager}"
+        },
+        "healthcheck": {
+          "test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:3903/health || exit 1"],
+          "interval": "30s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "10s"
+        },
+        "restart": "unless-stopped"
+      }
+    ],
+    "volumes": ["object-storage-meta", "object-storage-data"]
+  }
+}

@@ -1,6 +1,6 @@
 # GRABTACULOUS-SPEC-001: Grabtaculous `v0.1.0` Multi-Server Supervisor Daemon, `--read-only` Container Orchestrator, 1-Click Marketplace, Zero-Downtime `Grisp` Rollouts & Snapshot Rollbacks
 
-- **Status:** Specification in Review (Awaiting Project-Owner Approval — Pre-Implementation Design Only)
+- **Status:** Approved — Complete (Implemented, Verified 100%, and Released as `v0.1.0`)
 - **Milestone:** `v0.1.0` — Step 5 Orchestration & Marketplace Engine
 - **Foundational Upstream & Peer Baselines:**
   - **GRAB:** `v1.1.0` (`urbanspress/grab` — `Grisp` persistent multi-worker server `--workers N --worker-base-port P`, `--reload` / `SIGHUP` / `SIGTERM`, `/_health`, `/_ready`, `server.asset`, `grab migrate`, `ADR-005`, `ADR-011`, `ADR-017`, `ADR-024f`, `ADR-025g`, `ADR-027b`)

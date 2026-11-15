@@ -1,0 +1,87 @@
+{
+  "schema_version": "0.1.0",
+  "id": "grab-grisp-app",
+  "name": "Standalone GRAB Grisp Application",
+  "category": "runtime",
+  "version": "1.1.0",
+  "summary": "Hardened standalone GRAB v1.1.0 Grisp multi-worker application stack (--read-only rootfs, non-root UID 65532, loopback worker pool 127.0.0.1:8765-8768, /_ready probes).",
+  "recommended_edge_proxy": "caddy",
+  "ecosystem_layers": {
+    "grab": "1.1.0",
+    "grex-js": "1.0.0"
+  },
+  "required_variables": [
+    {
+      "name": "GRAB_APP_SECRET",
+      "description": "Application signing secret injected at runtime",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "GRAB_APP_PORT",
+      "description": "Primary loopback upstream port published on 127.0.0.1",
+      "required": false,
+      "default": "8765"
+    }
+  ],
+  "stack": {
+    "stack_name": "grab-grisp-app",
+    "edge_proxy": "caddy",
+    "services": [
+      {
+        "name": "grab-grisp-app",
+        "image": "ghcr.io/urbanspress/grab:v1.1.0@sha256:4d5f9a83a91d7b1e39ce19ab818373a7f244ca4b2a9d2218c98eb74bc7211100",
+        "container_name": "grab-grisp-app",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:rw,noexec,nosuid,size=64m"],
+        "ports": ["127.0.0.1:${GRAB_APP_PORT:-8765}:8080"],
+        "working_dir": "/workspace",
+        "volumes": [
+          "../src:/workspace/src:ro",
+          "../views:/workspace/views:ro",
+          "../public:/workspace/public:ro",
+          "app-storage:/workspace/storage:rw"
+        ],
+        "networks": ["grabtac_loopback", "grabtac_internal"],
+        "environment": {
+          "GRAB_APP_SECRET": "${GRAB_APP_SECRET:?Set GRAB_APP_SECRET in .env or secret manager}",
+          "GRAB_DB_CONFIG": "/workspace/grab.data.json",
+          "GRAB_PLATFORM_CONFIG": "/workspace/grab.platform.json",
+          "GRAB_TRUSTED_PROXY": "127.0.0.1"
+        },
+        "command": [
+          "grab", "serve",
+          "--addr", "0.0.0.0:8080",
+          "--allow-public",
+          "--allow-scripts",
+          "--diagnostics", "production",
+          "--log-format", "json",
+          "--trusted-proxy", "127.0.0.1",
+          "--allow-read", "/workspace",
+          "--allow-write", "/workspace/storage",
+          "--allow-env", "GRAB_APP_SECRET",
+          "--db-config", "/workspace/grab.data.json",
+          "--allow-db", "main:read-write",
+          "--platform-config", "/workspace/grab.platform.json",
+          "--allow-cache", "app_cache:read-write",
+          "--static", "/workspace/public",
+          "--workers", "${GRISP_WORKERS:-4}",
+          "--worker-base-port", "8765",
+          "/workspace/src/app.grab"
+        ],
+        "healthcheck": {
+          "test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/_ready || exit 1"],
+          "interval": "15s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "10s"
+        },
+        "restart": "unless-stopped"
+      }
+    ],
+    "volumes": ["app-storage"]
+  }
+}

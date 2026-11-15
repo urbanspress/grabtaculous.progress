@@ -1,0 +1,53 @@
+{
+  "schema_version": "0.1.0",
+  "id": "automation",
+  "name": "Workflow Automation Runner (Self-Hosted)",
+  "category": "companion",
+  "version": "1.82.3",
+  "summary": "Self-hosted webhook & background workflow runner hardened with --read-only rootfs, cap_drop ALL, non-root UID 65532, and loopback-only publishing.",
+  "recommended_edge_proxy": "caddy",
+  "required_variables": [
+    {
+      "name": "AUTOMATION_ENCRYPTION_KEY",
+      "description": "32-byte credential encryption secret supplied via secret manager",
+      "required": true,
+      "secret": true
+    }
+  ],
+  "stack": {
+    "stack_name": "automation",
+    "edge_proxy": "caddy",
+    "services": [
+      {
+        "name": "automation",
+        "image": "ghcr.io/n8n-io/n8n:1.82.3@sha256:6a72c9f1a098e677a98b60d0b4bc8f3c6a353184d3a727aa1e4f0bb793551823",
+        "container_name": "grabtac-automation",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:rw,noexec,nosuid,size=64m"],
+        "ports": ["127.0.0.1:${AUTOMATION_PORT:-8770}:5678"],
+        "volumes": [
+          "automation-data:/home/node/.n8n:rw"
+        ],
+        "networks": ["grabtac_loopback", "grabtac_internal"],
+        "environment": {
+          "N8N_ENCRYPTION_KEY": "${AUTOMATION_ENCRYPTION_KEY:?Set AUTOMATION_ENCRYPTION_KEY in .env or secret manager}",
+          "N8N_HOST": "127.0.0.1",
+          "N8N_PORT": "5678",
+          "N8N_TRUSTED_PROXIES": "127.0.0.1"
+        },
+        "healthcheck": {
+          "test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz || exit 1"],
+          "interval": "30s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "20s"
+        },
+        "restart": "unless-stopped"
+      }
+    ],
+    "volumes": ["automation-data"]
+  }
+}

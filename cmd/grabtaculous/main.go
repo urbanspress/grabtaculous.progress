@@ -1,0 +1,727 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"syscall"
+
+	"grabtaculous/internal/catalog"
+	"grabtaculous/internal/container"
+	"grabtaculous/internal/daemon"
+	"grabtaculous/internal/rollout"
+	"grabtaculous/internal/safepath"
+	"grabtaculous/internal/snapshot"
+)
+
+// Version identifies the release version (overridable via -ldflags "-X main.Version=...").
+var Version = "0.1.0"
+
+func main() {
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func run(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		printUsage(stderr)
+		return 2
+	}
+
+	sub := strings.TrimSpace(args[0])
+	rest := args[1:]
+
+	switch sub {
+	case "version", "-v", "--version":
+		return cmdVersion(rest, stdout, stderr)
+	case "help", "-h", "--help":
+		printUsage(stdout)
+		return 0
+	case "daemon":
+		return cmdDaemon(rest, stdout, stderr)
+	case "catalog":
+		return cmdCatalog(rest, stdout, stderr)
+	case "deploy":
+		return cmdDeploy(rest, stdout, stderr)
+	case "rollout":
+		return cmdRollout(rest, stdout, stderr)
+	case "rollback":
+		return cmdRollback(rest, stdout, stderr)
+	case "snapshot":
+		return cmdSnapshot(rest, stdout, stderr)
+	case "audit":
+		return cmdAudit(rest, stdout, stderr)
+	case "status":
+		return cmdStatus(rest, stdout, stderr)
+	default:
+		fmt.Fprintf(stderr, "Error: unknown command %q\n\n", sub)
+		printUsage(stderr)
+		return 2
+	}
+}
+
+func printUsage(w io.Writer) {
+	fmt.Fprint(w, `grabtaculous v`+Version+` — Multi-Server Supervisor, --read-only Orchestrator & Zero-Downtime Rollout Engine
+
+Usage:
+  grabtaculous daemon   [--listen 127.0.0.1:9440] [--socket <unix-path>] [--state-dir <dir>] [--catalog-dir <dir>] [--json]
+  grabtaculous catalog  <list|inspect <id>> [--catalog-dir <dir>] [--json]
+  grabtaculous deploy   <blueprint-id> [--dir <path>] [--name <app>] [--domain <domain>] [--edge-proxy caddy|nginx|cloudflare-tunnel] [--workers <n>] [--state-dir <dir>] [--catalog-dir <dir>] [--grabman-bin <path>] [--json]
+  grabtaculous rollout  [<dir>] [--dir <path>] [--name <app>] [--entry <file.grab>] [--candidate-dna <file.json>] [--migrate-file <migrations.grab>] [--db-config <grab.data.json>] [--db-alias <alias>] [--edge-proxy caddy|nginx|cloudflare-tunnel] [--domain <domain>] [--grab-bin <path>] [--grabman-bin <path>] [--state-dir <dir>] [--json]
+  grabtaculous rollback <deploy-id> [--dir <path>] [--state-dir <dir>] [--ready-url <url>] [--json]
+  grabtaculous snapshot <list|create|verify <deploy-id>> [--dir <path>] [--name <app>] [--state-dir <dir>] [--json]
+  grabtaculous audit    [--dir <path>] [--file <compose.yml>] [--require-digest] [--json]
+  grabtaculous status   [--dir <path>] [--state-dir <dir>] [--json]
+  grabtaculous version  [--json]
+`)
+}
+
+func cmdVersion(args []string, stdout, stderr io.Writer) int {
+	asJSON := false
+	for _, a := range args {
+		if a == "--json" {
+			asJSON = true
+		} else {
+			fmt.Fprintf(stderr, "Error: unknown flag %q for version\n", a)
+			return 2
+		}
+	}
+	if asJSON {
+		writeJSON(stdout, map[string]any{
+			"name":           "grabtaculous",
+			"version":        Version,
+			"schema_version": "0.1.0",
+			"default_bind":   daemon.DefaultListenAddr,
+		})
+		return 0
+	}
+	fmt.Fprintf(stdout, "grabtaculous v%s\n", Version)
+	return 0
+}
+
+func cmdDaemon(args []string, stdout, stderr io.Writer) int {
+	reordered := reorderFlags(args, map[string]bool{
+		"listen":      true,
+		"socket":      true,
+		"state-dir":   true,
+		"catalog-dir": true,
+	})
+	fs := flag.NewFlagSet("daemon", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	listenAddr := fs.String("listen", daemon.DefaultListenAddr, "Strictly 127.0.0.1:<port> or [::1]:<port> bind address")
+	sockPath := fs.String("socket", "", "Optional Unix domain socket path")
+	stateDir := fs.String("state-dir", ".grabtaculous", "Supervisor state directory")
+	catalogDir := fs.String("catalog-dir", "", "Optional external curated catalog directory")
+	asJSON := fs.Bool("json", false, "Output startup info as JSON")
+
+	if err := fs.Parse(reordered); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 2)
+	}
+	bindTarget := strings.TrimSpace(*listenAddr)
+	if strings.TrimSpace(*sockPath) != "" {
+		bindTarget = "unix:" + strings.TrimSpace(*sockPath)
+	}
+
+	srv, err := daemon.NewServer(daemon.ServerConfig{
+		ListenAddr: bindTarget,
+		StateDir:   *stateDir,
+		CatalogDir: *catalogDir,
+	})
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+
+	if *asJSON {
+		writeJSON(stdout, map[string]any{
+			"ok":      true,
+			"service": "grabtaculousd",
+			"version": Version,
+			"listen":  bindTarget,
+			"state":   *stateDir,
+		})
+	} else {
+		fmt.Fprintf(stdout, "Starting grabtaculousd v%s on %s (ADR-005 loopback/socket-only; token stored in %s)\n",
+			Version, bindTarget, filepath.Join(*stateDir, "control.token"))
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := srv.Start(ctx); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	return 0
+}
+
+func cmdCatalog(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "Usage: grabtaculous catalog <list|inspect <id>> [--catalog-dir <dir>] [--json]")
+		return 2
+	}
+	sub := strings.TrimSpace(args[0])
+	rest := reorderFlags(args[1:], map[string]bool{
+		"catalog-dir": true,
+	})
+
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("catalog list", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		catalogDir := fs.String("catalog-dir", "", "Optional catalog directory")
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		loader := catalog.NewLoader(*catalogDir)
+		items, err := loader.List()
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		if *asJSON {
+			writeJSON(stdout, map[string]any{
+				"ok":         true,
+				"blueprints": items,
+			})
+			return 0
+		}
+		fmt.Fprintf(stdout, "Curated 1-Click App Marketplace (%d verified blueprint(s)):\n", len(items))
+		for _, item := range items {
+			fmt.Fprintf(stdout, "  %-22s %-10s v%-8s sha256:%s  %s\n", item.ID, item.Category, item.Version, item.SHA256[:12], item.Name)
+		}
+		return 0
+
+	case "inspect":
+		fs := flag.NewFlagSet("catalog inspect", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		catalogDir := fs.String("catalog-dir", "", "Optional catalog directory")
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		if fs.NArg() != 1 {
+			return writeError(*asJSON, stdout, stderr, fmt.Errorf("usage: grabtaculous catalog inspect <blueprint-id> [--catalog-dir <dir>] [--json]"), 2)
+		}
+		loader := catalog.NewLoader(*catalogDir)
+		bp, err := loader.LoadBlueprint(fs.Arg(0))
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		if *asJSON {
+			writeJSON(stdout, map[string]any{
+				"ok":        true,
+				"blueprint": bp,
+			})
+			return 0
+		}
+		fmt.Fprintf(stdout, "%s (v%s) [%s]\n", bp.Name, bp.Version, bp.ID)
+		fmt.Fprintf(stdout, "  Summary:  %s\n", bp.Summary)
+		fmt.Fprintf(stdout, "  SHA-256:  %s\n", bp.VerifiedManifestSHA256)
+		fmt.Fprintf(stdout, "  Services: %d (all --read-only, cap_drop ALL, non-root UID 65532)\n", len(bp.Stack.Services))
+		for _, svc := range bp.Stack.Services {
+			fmt.Fprintf(stdout, "    - %s -> %s (ports: %v)\n", svc.Name, svc.Image, svc.Ports)
+		}
+		return 0
+
+	default:
+		fmt.Fprintf(stderr, "Error: unknown catalog subcommand %q (expected list or inspect)\n", sub)
+		return 2
+	}
+}
+
+func cmdDeploy(args []string, stdout, stderr io.Writer) int {
+	reordered := reorderFlags(args, map[string]bool{
+		"dir":         true,
+		"name":        true,
+		"domain":      true,
+		"edge-proxy":  true,
+		"workers":     true,
+		"state-dir":   true,
+		"catalog-dir": true,
+		"grabman-bin": true,
+	})
+	fs := flag.NewFlagSet("deploy", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	dir := fs.String("dir", ".", "Target deployment workspace directory")
+	name := fs.String("name", "", "Optional application display/stack name")
+	domain := fs.String("domain", "localhost", "Edge proxy domain name")
+	edgeProxy := fs.String("edge-proxy", "caddy", "Edge proxy provider (caddy, nginx, cloudflare-tunnel)")
+	workers := fs.Int("workers", 0, "Worker port slots to allocate in 127.0.0.1:8765-8772")
+	stateDir := fs.String("state-dir", "", "Supervisor state/snapshot directory")
+	catalogDir := fs.String("catalog-dir", "", "Optional external curated catalog directory")
+	grabmanBin := fs.String("grabman-bin", "", "Optional explicit path to grabman CLI")
+	skipLock := fs.Bool("skip-lock-verify", false, "Skip grabman solve --verify even if grabman.json exists")
+	asJSON := fs.Bool("json", false, "Output JSON")
+
+	if err := fs.Parse(reordered); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 2)
+	}
+	if fs.NArg() != 1 {
+		return writeError(*asJSON, stdout, stderr, fmt.Errorf("usage: grabtaculous deploy <blueprint-id> [--dir <path>] [--edge-proxy caddy|nginx|cloudflare-tunnel] [--json]"), 2)
+	}
+
+	res, err := daemon.DeployBlueprint(context.Background(), daemon.DeployOptions{
+		BlueprintID:    fs.Arg(0),
+		TargetDir:      *dir,
+		StateDir:       *stateDir,
+		CatalogDir:     *catalogDir,
+		AppName:        *name,
+		Domain:         *domain,
+		EdgeProxy:      *edgeProxy,
+		Workers:        *workers,
+		GrabmanBinary:  *grabmanBin,
+		SkipLockVerify: *skipLock,
+	})
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	if *asJSON {
+		writeJSON(stdout, map[string]any{
+			"ok":     true,
+			"deploy": res,
+		})
+		return 0
+	}
+	fmt.Fprintf(stdout, "Deployed curated blueprint %s (v%s) to %s\n", res.BlueprintID, res.BlueprintVersion, res.Workspace)
+	fmt.Fprintf(stdout, "  Snapshot ID: %s\n", res.DeploySnapshotID)
+	fmt.Fprintf(stdout, "  Edge Proxy:  %s (%s -> %s)\n", res.EdgeProxy, res.Domain, res.EdgeFile)
+	fmt.Fprintf(stdout, "  Loopback:    127.0.0.1 ports %v\n", res.WorkerPorts)
+	fmt.Fprintf(stdout, "  Compose:     %s\n", res.ComposeFile)
+	return 0
+}
+
+func cmdRollout(args []string, stdout, stderr io.Writer) int {
+	reordered := reorderFlags(args, map[string]bool{
+		"dir":           true,
+		"name":          true,
+		"entry":         true,
+		"domain":        true,
+		"edge-proxy":    true,
+		"candidate-dna": true,
+		"migrate-file":  true,
+		"db-config":     true,
+		"db-alias":      true,
+		"grab-bin":      true,
+		"grabman-bin":   true,
+		"state-dir":     true,
+		"smoke-url":     true,
+	})
+	fs := flag.NewFlagSet("rollout", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	dir := fs.String("dir", "", "Target workspace directory")
+	name := fs.String("name", "", "Application name")
+	entry := fs.String("entry", "", "Optional GRAB entry file relative path")
+	domain := fs.String("domain", "", "Optional domain for updating edge proxy config")
+	edgeProxy := fs.String("edge-proxy", "", "Optional edge proxy (caddy, nginx, cloudflare-tunnel)")
+	candidateDNA := fs.String("candidate-dna", "", "Optional Site DNA JSON file to validate and apply")
+	migrateFile := fs.String("migrate-file", "", "Optional explicit .grab migration file to run before traffic switch")
+	dbConfig := fs.String("db-config", "grab.data.json", "Workspace database config file")
+	dbAlias := fs.String("db-alias", "main", "Database alias for explicit grab migrate")
+	grabBin := fs.String("grab-bin", "", "Optional GRAB CLI path")
+	grabmanBin := fs.String("grabman-bin", "", "Optional grabman CLI path")
+	stateDir := fs.String("state-dir", "", "Supervisor state/snapshot directory")
+	smokeURL := fs.String("smoke-url", "", "Optional loopback smoke URL to verify post-cutover")
+	requireLock := fs.Bool("require-lock", false, "Require grabman.lock verification")
+	skipGrab := fs.Bool("skip-grab-check", false, "Skip grab check preflight")
+	asJSON := fs.Bool("json", false, "Output JSON")
+
+	if err := fs.Parse(reordered); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 2)
+	}
+	targetDir := strings.TrimSpace(*dir)
+	if fs.NArg() == 1 && targetDir == "" {
+		targetDir = fs.Arg(0)
+	} else if fs.NArg() > 1 || (fs.NArg() == 1 && targetDir != "") {
+		return writeError(*asJSON, stdout, stderr, fmt.Errorf("unexpected positional arguments: %v", fs.Args()), 2)
+	}
+	if targetDir == "" {
+		targetDir = "."
+	}
+
+	var mig *rollout.MigrationConfig
+	if strings.TrimSpace(*migrateFile) != "" {
+		mig = &rollout.MigrationConfig{
+			MigrationFile: *migrateFile,
+			DBConfig:      *dbConfig,
+			DBAlias:       *dbAlias,
+			GrabBinary:    *grabBin,
+		}
+	}
+	var edgeCfg *container.EdgeRouteConfig
+	if strings.TrimSpace(*edgeProxy) != "" || strings.TrimSpace(*domain) != "" {
+		edgeCfg = &container.EdgeRouteConfig{
+			EdgeProxy:     *edgeProxy,
+			Domain:        *domain,
+			UpstreamHost:  "127.0.0.1",
+			UpstreamPorts: []int{rollout.DefaultWorkerBasePort},
+			HealthPath:    "/_ready",
+		}
+	}
+	var smoke []string
+	if strings.TrimSpace(*smokeURL) != "" {
+		smoke = []string{strings.TrimSpace(*smokeURL)}
+	}
+
+	res, err := rollout.ExecuteRollout(context.Background(), rollout.RolloutOptions{
+		Workspace:        targetDir,
+		StateDir:         *stateDir,
+		AppName:          *name,
+		GrabBinary:       *grabBin,
+		GrabmanBinary:    *grabmanBin,
+		EntryFile:        *entry,
+		CandidateSiteDNA: *candidateDNA,
+		Migration:        mig,
+		EdgeConfig:       edgeCfg,
+		SmokeURLs:        smoke,
+		RequireLockfile:  *requireLock,
+		SkipGrabCheck:    *skipGrab,
+	})
+	if err != nil {
+		if *asJSON {
+			writeJSON(stdout, map[string]any{
+				"ok":      false,
+				"code":    string(safepath.ExtractCode(err)),
+				"error":   err.Error(),
+				"rollout": res,
+			})
+			return 1
+		}
+		return writeError(false, stdout, stderr, err, 1)
+	}
+	if *asJSON {
+		writeJSON(stdout, map[string]any{
+			"ok":      true,
+			"rollout": res,
+		})
+		return 0
+	}
+	fmt.Fprintf(stdout, "Zero-downtime rollout succeeded for %s\n", res.AppName)
+	fmt.Fprintf(stdout, "  Pre-Deploy Snapshot: %s\n", res.DeployID)
+	for _, st := range res.Stages {
+		fmt.Fprintf(stdout, "  Stage %d (%s): %s — %s\n", st.Stage, st.Name, st.Status, st.Details)
+	}
+	return 0
+}
+
+func cmdRollback(args []string, stdout, stderr io.Writer) int {
+	reordered := reorderFlags(args, map[string]bool{
+		"dir":       true,
+		"state-dir": true,
+		"ready-url": true,
+	})
+	fs := flag.NewFlagSet("rollback", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	dir := fs.String("dir", ".", "Target workspace directory")
+	stateDir := fs.String("state-dir", "", "Supervisor state/snapshot directory")
+	readyURL := fs.String("ready-url", "", "Optional loopback /_ready URL to verify after rollback")
+	asJSON := fs.Bool("json", false, "Output JSON")
+
+	if err := fs.Parse(reordered); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 2)
+	}
+	if fs.NArg() != 1 {
+		return writeError(*asJSON, stdout, stderr, fmt.Errorf("usage: grabtaculous rollback <deploy_id> [--dir <path>] [--state-dir <dir>] [--json]"), 2)
+	}
+	var readyURLs []string
+	if strings.TrimSpace(*readyURL) != "" {
+		readyURLs = []string{strings.TrimSpace(*readyURL)}
+	}
+	res, err := snapshot.Rollback(context.Background(), snapshot.RollbackOptions{
+		StateDir:  *stateDir,
+		Workspace: *dir,
+		DeployID:  fs.Arg(0),
+		ReadyURLs: readyURLs,
+	})
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	if *asJSON {
+		writeJSON(stdout, map[string]any{
+			"ok":       true,
+			"rollback": res,
+		})
+		return 0
+	}
+	fmt.Fprintf(stdout, "Rolled back %s cleanly from snapshot %s\n", res.Workspace, res.DeployID)
+	fmt.Fprintf(stdout, "  Restored files: %d\n", len(res.RestoredFiles))
+	fmt.Fprintf(stdout, "  Removed files:  %d\n", len(res.RemovedFiles))
+	return 0
+}
+
+func cmdSnapshot(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "Usage: grabtaculous snapshot <list|create|verify <deploy_id>> [--dir <path>] [--state-dir <dir>] [--json]")
+		return 2
+	}
+	sub := strings.TrimSpace(args[0])
+	rest := reorderFlags(args[1:], map[string]bool{
+		"dir":       true,
+		"name":      true,
+		"state-dir": true,
+	})
+
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("snapshot list", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		dir := fs.String("dir", ".", "Workspace directory")
+		stateDir := fs.String("state-dir", "", "Snapshot state directory")
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		sDir := resolveCLIStateDir(*stateDir, *dir)
+		items, err := snapshot.List(sDir)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		if *asJSON {
+			writeJSON(stdout, map[string]any{
+				"ok":        true,
+				"snapshots": items,
+			})
+			return 0
+		}
+		fmt.Fprintf(stdout, "Snapshots (%d) in %s:\n", len(items), sDir)
+		for _, it := range items {
+			fmt.Fprintf(stdout, "  %s  %-10s  %2d files  sha256:%s  (%s)\n", it.DeployID, it.Trigger, it.ArtifactCount, it.ManifestSHA256[:12], it.CreatedAtUTC)
+		}
+		return 0
+
+	case "create":
+		fs := flag.NewFlagSet("snapshot create", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		dir := fs.String("dir", ".", "Workspace directory")
+		name := fs.String("name", "", "App name")
+		stateDir := fs.String("state-dir", "", "Snapshot state directory")
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		rec, err := snapshot.Create(context.Background(), snapshot.CreateOptions{
+			StateDir:  *stateDir,
+			Workspace: *dir,
+			AppName:   *name,
+			Trigger:   "manual",
+		})
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		if *asJSON {
+			writeJSON(stdout, map[string]any{
+				"ok":       true,
+				"snapshot": rec,
+			})
+			return 0
+		}
+		fmt.Fprintf(stdout, "Created immutable snapshot %s (%d artifact(s), manifest sha256:%s)\n",
+			rec.DeployID, len(rec.Artifacts), rec.ManifestSHA256)
+		return 0
+
+	case "verify":
+		fs := flag.NewFlagSet("snapshot verify", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		dir := fs.String("dir", ".", "Workspace directory")
+		stateDir := fs.String("state-dir", "", "Snapshot state directory")
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		if fs.NArg() != 1 {
+			return writeError(*asJSON, stdout, stderr, fmt.Errorf("usage: grabtaculous snapshot verify <deploy_id> [--dir <path>] [--state-dir <dir>] [--json]"), 2)
+		}
+		sDir := resolveCLIStateDir(*stateDir, *dir)
+		rec, err := snapshot.Verify(sDir, fs.Arg(0))
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		if *asJSON {
+			writeJSON(stdout, map[string]any{
+				"ok":       true,
+				"verified": true,
+				"snapshot": rec,
+			})
+			return 0
+		}
+		fmt.Fprintf(stdout, "Snapshot %s VERIFIED (%d artifact(s), manifest sha256:%s)\n",
+			rec.DeployID, len(rec.Artifacts), rec.ManifestSHA256)
+		return 0
+
+	default:
+		fmt.Fprintf(stderr, "Error: unknown snapshot subcommand %q (expected list, create, or verify)\n", sub)
+		return 2
+	}
+}
+
+func cmdAudit(args []string, stdout, stderr io.Writer) int {
+	reordered := reorderFlags(args, map[string]bool{
+		"dir":  true,
+		"file": true,
+	})
+	fs := flag.NewFlagSet("audit", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	dir := fs.String("dir", ".", "Workspace directory")
+	file := fs.String("file", "deploy/docker-compose.yml", "Compose file relative path")
+	reqDigest := fs.Bool("require-digest", false, "Require @sha256 digest pins on every image")
+	asJSON := fs.Bool("json", false, "Output JSON")
+
+	if err := fs.Parse(reordered); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 2)
+	}
+	realWS, err := safepath.ResolveRoot(*dir)
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	abs, slash, err := safepath.ResolveFile(realWS, *file, safepath.ResolveOptions{})
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	raw, err := safepath.ReadBoundedFile(abs)
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	if err := container.AuditComposeYAML(slash, string(raw), container.AuditOptions{RequireDigest: *reqDigest}); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	if *asJSON {
+		writeJSON(stdout, map[string]any{
+			"ok":   true,
+			"file": slash,
+		})
+		return 0
+	}
+	fmt.Fprintf(stdout, "%s passed GRABTAC-E401 --read-only hardening & zero-secrets audit.\n", slash)
+	return 0
+}
+
+func cmdStatus(args []string, stdout, stderr io.Writer) int {
+	reordered := reorderFlags(args, map[string]bool{
+		"dir":       true,
+		"state-dir": true,
+	})
+	fs := flag.NewFlagSet("status", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	dir := fs.String("dir", ".", "Workspace directory")
+	stateDir := fs.String("state-dir", "", "Supervisor state directory")
+	asJSON := fs.Bool("json", false, "Output JSON")
+	if err := fs.Parse(reordered); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 2)
+	}
+	sDir := resolveCLIStateDir(*stateDir, *dir)
+	store, err := daemon.NewInventoryStore(sDir)
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	doc, err := store.Snapshot()
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	snaps, _ := snapshot.List(sDir)
+	if *asJSON {
+		writeJSON(stdout, map[string]any{
+			"ok":             true,
+			"version":        Version,
+			"state_dir":      sDir,
+			"node_count":     len(doc.Nodes),
+			"app_count":      len(doc.Apps),
+			"snapshot_count": len(snaps),
+			"inventory":      doc,
+		})
+		return 0
+	}
+	fmt.Fprintf(stdout, "Grabtaculous v%s Status (%s)\n", Version, sDir)
+	fmt.Fprintf(stdout, "  Nodes:     %d\n", len(doc.Nodes))
+	fmt.Fprintf(stdout, "  Apps:      %d\n", len(doc.Apps))
+	fmt.Fprintf(stdout, "  Snapshots: %d\n", len(snaps))
+	return 0
+}
+
+func resolveCLIStateDir(stateDir, workspace string) string {
+	if strings.TrimSpace(stateDir) != "" {
+		return strings.TrimSpace(stateDir)
+	}
+	return filepath.Join(workspace, ".grabtaculous")
+}
+
+func reorderFlags(args []string, valueFlags map[string]bool) []string {
+	var flagsPart []string
+	var posPart []string
+	afterTerminator := false
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if afterTerminator {
+			posPart = append(posPart, a)
+			continue
+		}
+		if a == "--" {
+			afterTerminator = true
+			continue
+		}
+		if strings.HasPrefix(a, "-") && len(a) > 1 {
+			flagsPart = append(flagsPart, a)
+			if !strings.Contains(a, "=") {
+				name := strings.TrimLeft(a, "-")
+				if valueFlags[name] && i+1 < len(args) {
+					i++
+					flagsPart = append(flagsPart, args[i])
+				}
+			}
+			continue
+		}
+		posPart = append(posPart, a)
+	}
+	if afterTerminator {
+		posPart = append([]string{"--"}, posPart...)
+	}
+	return append(flagsPart, posPart...)
+}
+
+func writeJSON(w io.Writer, v any) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		fmt.Fprintf(w, `{"ok":false,"error":%q}`+"\n", err.Error())
+		return
+	}
+	_, _ = w.Write(buf.Bytes())
+}
+
+func writeError(asJSON bool, stdout, stderr io.Writer, err error, code int) int {
+	diagCode := safepath.ExtractCode(err)
+	var dErr *safepath.DiagError
+	remediation := ""
+	if errors.As(err, &dErr) {
+		remediation = dErr.Remediation
+	}
+	if asJSON {
+		payload := map[string]any{
+			"ok":    false,
+			"error": err.Error(),
+		}
+		if diagCode != "" {
+			payload["code"] = string(diagCode)
+		}
+		if remediation != "" {
+			payload["remediation"] = remediation
+		}
+		writeJSON(stdout, payload)
+		return code
+	}
+	if diagCode != "" {
+		fmt.Fprintf(stderr, "Error [%s]: %s\n", diagCode, err.Error())
+	} else {
+		fmt.Fprintf(stderr, "Error: %s\n", err.Error())
+	}
+	if remediation != "" {
+		fmt.Fprintf(stderr, "Remediation: %s\n", remediation)
+	}
+	return code
+}

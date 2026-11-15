@@ -1,0 +1,55 @@
+{
+  "schema_version": "0.1.0",
+  "id": "webmail",
+  "name": "Webmail Client (Self-Hosted)",
+  "category": "companion",
+  "version": "1.6.10",
+  "summary": "Hardened self-hosted webmail client running --read-only under UID 65532 behind edge HTTPS on 127.0.0.1 loopback.",
+  "recommended_edge_proxy": "caddy",
+  "required_variables": [
+    {
+      "name": "WEBMAIL_DES_KEY",
+      "description": "24-character session encryption key supplied via secret manager",
+      "required": true,
+      "secret": true
+    }
+  ],
+  "stack": {
+    "stack_name": "webmail",
+    "edge_proxy": "caddy",
+    "services": [
+      {
+        "name": "webmail",
+        "image": "roundcube/roundcubemail:1.6.10-fpm-alpine@sha256:7b12a034c88c99874475a66e22e95cf04a2b3f74d8e98c6f2d80e0ab3c211610",
+        "container_name": "grabtac-webmail",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": [
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "/var/run/php:rw,noexec,nosuid,size=16m"
+        ],
+        "ports": ["127.0.0.1:${WEBMAIL_PORT:-8771}:8025"],
+        "volumes": [
+          "webmail-data:/var/roundcube/db:rw"
+        ],
+        "networks": ["grabtac_loopback", "grabtac_internal"],
+        "environment": {
+          "ROUNDCUBEMAIL_DES_KEY": "${WEBMAIL_DES_KEY:?Set WEBMAIL_DES_KEY in .env or secret manager}",
+          "ROUNDCUBEMAIL_DEFAULT_HOST": "${WEBMAIL_IMAP_HOST:-ssl://mail.example.com}",
+          "ROUNDCUBEMAIL_SMTP_SERVER": "${WEBMAIL_SMTP_HOST:-tls://mail.example.com}"
+        },
+        "healthcheck": {
+          "test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:8025/ || exit 1"],
+          "interval": "30s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "15s"
+        },
+        "restart": "unless-stopped"
+      }
+    ],
+    "volumes": ["webmail-data"]
+  }
+}

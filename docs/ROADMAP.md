@@ -13,9 +13,9 @@
 
 ## `v0.1.0` — Multi-Server Supervisor Daemon, `--read-only` Container Orchestrator, Curated 1-Click Marketplace Catalog, Zero-Downtime `Grisp` Rollouts & Pre-Deploy Snapshot Rollbacks
 
-**Status:** Specification in Review ([`specifications/GRABTACULOUS-SPEC-001.md`](../specifications/GRABTACULOUS-SPEC-001.md))
+**Status:** Complete ([`specifications/GRABTACULOUS-SPEC-001.md`](../specifications/GRABTACULOUS-SPEC-001.md) — Released `v0.1.0`, Guide: [`Grabtaculous-v0.1.0-Guide.pdf`](releases/pdf/Grabtaculous-v0.1.0-Guide.pdf))
 
-Planned Scope (Awaiting Approval):
+Approved Scope:
 - **Loopback / SSH-Controlled Supervisor Daemon (`grabtaculousd`):** Manages registered VPS nodes and local `Grisp` workers (`127.0.0.1:8765–8772`) over private loopback (`127.0.0.1`) or SSH control channels—zero public panel login port exposed (`ADR-005`).
 - **`--read-only` Container & Edge SSL Orchestrator:** Generates and enforces hardened Compose manifests (`read_only: true`, `cap_drop: ["ALL"]`, `no-new-privileges:true`, non-root UID `65532`, loopback port bindings) paired with automatic edge HTTPS (**Caddy** recommended, **Nginx + Certbot**, or **Cloudflare Tunnel**).
 - **Curated 1-Click App Marketplace Catalog (`catalog/`):** Pinned, SHA-256-verified templates for **`GrabLab CMS v1.0.1 + Grex Theme Builder v1.0.0`**, **`Groxy AI v1.0.0`**, standalone `Grisp` apps, private Postgres/MariaDB/Redis data stores, and companion self-hosted apps (analytics, object storage, automation, webmail).

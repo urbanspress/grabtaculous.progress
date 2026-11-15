@@ -1,0 +1,395 @@
+#!/usr/bin/env python3
+"""Generate plain-English HTML and PDF release guides for Grabtaculous."""
+
+from __future__ import annotations
+
+import argparse
+import html
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+HTML_DIR = ROOT / "docs" / "releases" / "html"
+PDF_DIR = ROOT / "docs" / "releases" / "pdf"
+
+
+def find_browser() -> str | None:
+    candidates = [
+        shutil.which("chrome"),
+        shutil.which("msedge"),
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+    ]
+    for cand in candidates:
+        if cand and Path(cand).is_file():
+            return cand
+    return None
+
+
+def build_html(version: str) -> str:
+    v = html.escape(version)
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Grabtaculous v{v} — Plain-English Setup, Security &amp; Rollout Guide</title>
+  <style>
+    @page {{
+      size: Letter;
+      margin: 0.72in 0.75in 0.75in 0.75in;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      line-height: 1.56;
+      font-size: 10.4pt;
+      margin: 0;
+      padding: 0;
+    }}
+    .hero {{
+      background: linear-gradient(135deg, #0f172a 0%, #064e3b 100%);
+      color: #f8fafc;
+      padding: 24px 28px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }}
+    .hero .eyebrow {{
+      font-size: 8.5pt;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: #6ee7b7;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }}
+    .hero h1 {{
+      font-size: 20pt;
+      margin: 0 0 8px 0;
+      line-height: 1.2;
+      color: #ffffff;
+    }}
+    .hero p {{
+      margin: 0;
+      color: #e2e8f0;
+      font-size: 10.2pt;
+    }}
+    .badges {{
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }}
+    .badge {{
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.18);
+      border: 1px solid #34d399;
+      color: #ecfdf5;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 8.5pt;
+      font-weight: 600;
+    }}
+    h2 {{
+      font-size: 13pt;
+      color: #064e3b;
+      border-bottom: 2px solid #d1fae5;
+      padding-bottom: 4px;
+      margin-top: 22px;
+      margin-bottom: 10px;
+      page-break-after: avoid;
+    }}
+    h3 {{
+      font-size: 11pt;
+      color: #0f172a;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      page-break-after: avoid;
+    }}
+    p {{ margin: 0 0 10px 0; }}
+    ul, ol {{ margin: 6px 0 12px 20px; padding: 0; }}
+    li {{ margin-bottom: 5px; }}
+    .card-grid {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 12px 0 16px 0;
+    }}
+    .card {{
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #f8fafc;
+      page-break-inside: avoid;
+    }}
+    .card strong {{
+      display: block;
+      color: #065f46;
+      margin-bottom: 4px;
+      font-size: 10pt;
+    }}
+    .callout {{
+      background: #ecfdf5;
+      border-left: 4px solid #10b981;
+      padding: 11px 14px;
+      border-radius: 0 8px 8px 0;
+      margin: 12px 0;
+      page-break-inside: avoid;
+    }}
+    .callout strong {{ color: #065f46; }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 16px 0;
+      font-size: 9.2pt;
+      page-break-inside: avoid;
+    }}
+    th {{
+      background: #0f172a;
+      color: #f8fafc;
+      text-align: left;
+      padding: 7px 9px;
+      font-weight: 600;
+    }}
+    td {{
+      border: 1px solid #cbd5e1;
+      padding: 6px 9px;
+      vertical-align: top;
+    }}
+    tr:nth-child(even) td {{ background: #f8fafc; }}
+    pre {{
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 11px 14px;
+      border-radius: 8px;
+      font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+      font-size: 8.7pt;
+      line-height: 1.45;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      margin: 8px 0 12px 0;
+      page-break-inside: avoid;
+    }}
+    code {{
+      font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+      background: #f1f5f9;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-size: 8.8pt;
+      color: #0f172a;
+    }}
+    .footer {{
+      margin-top: 24px;
+      padding-top: 10px;
+      border-top: 1px solid #cbd5e1;
+      font-size: 8.5pt;
+      color: #475569;
+    }}
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <div class="eyebrow">Step 5 of the Post-1.0 GRAB Ecosystem · Layer 2 Guide</div>
+    <h1>Grabtaculous v{v} — Walkthrough &amp; Operations Guide</h1>
+    <p>Plain-English guide to running your stealth loopback server supervisor, deploying locked-down <code>--read-only</code> containers, shipping zero-downtime updates, and rolling back safely in one click.</p>
+    <div class="badges">
+      <span class="badge">Release v{v} (PRE-1.0)</span>
+      <span class="badge">Pure Go Stdlib · CGO_ENABLED=0</span>
+      <span class="badge">127.0.0.1 / SSH Stealth Only</span>
+      <span class="badge">Read-Only + SHA-256 Pinning</span>
+    </div>
+  </div>
+
+  <h2>1. What Grabtaculous Does (In Plain English)</h2>
+  <p>Once <code>grabman v0.1.0</code> scaffolds your site or stack, <strong>Grabtaculous</strong> is the server-side engine that actually launches, protects, updates, and rescues it on your VPS—without opening public admin ports that hackers scan for.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <strong>1. Stealth Private Control Channel</strong>
+      The supervisor daemon (<code>grabtaculousd</code>) only listens on private localhost (<code>127.0.0.1:9440</code>) or a local Unix socket. It actively refuses to bind to public <code>0.0.0.0</code>, so no management panel is ever exposed on the open internet. Your desktop <strong>Gashboard</strong> UI connects later through an encrypted SSH tunnel.
+    </div>
+    <div class="card">
+      <strong>2. Locked-Down Read-Only Apps</strong>
+      Every generated Docker Compose stack uses read-only root filesystems, drops all Linux capabilities, disables privilege escalation, runs under non-root user <code>65532:65532</code>, pins exact <code>@sha256:</code> digests (no mutable <code>:latest</code> tags), and binds app/DB ports only to <code>127.0.0.1</code>.
+    </div>
+    <div class="card">
+      <strong>3. Curated 1-Click App Marketplace</strong>
+      Deploy tested, cryptographically verified templates for the full <strong>GrabLab CMS + Grex Theme Builder + Groxy AI</strong> stack, standalone <code>Grisp</code> apps, private Postgres/MariaDB/Redis stores, analytics, S3 storage, automation, or webmail.
+    </div>
+    <div class="card">
+      <strong>4. Zero-Downtime Updates &amp; Safety Net</strong>
+      Before any code or config changes go live, Grabtaculous checks <code>grabman.lock</code>, validates <code>Site DNA</code>, checks your <code>.grab</code> syntax, takes an immutable SHA-256 snapshot, runs database migrations, swaps healthy workers only when <code>/_ready</code> returns HTTP 200, and auto-rolls back if anything breaks.
+    </div>
+  </div>
+
+  <h2>2. 5-Minute Quick Start Commands</h2>
+  <p>Grabtaculous ships as a single self-contained binary with the curated catalog already built inside it (zero external runtime dependencies).</p>
+
+  <pre># 1. Browse curated 1-click blueprints
+grabtaculous catalog list
+grabtaculous catalog inspect grablab-grex-bundle
+
+# 2. Deploy a hardened --read-only stack + Caddy automatic HTTPS edge config
+grabtaculous deploy grablab-grex-bundle --dir ./my-site --domain shop.example.com --edge-proxy caddy
+
+# 3. Audit any Compose file for read-only, non-root, digest pinning, and zero-secret rules
+grabtaculous audit --dir ./my-site --require-digest
+
+# 4. Run a 6-stage zero-downtime rollout with pre-flight + migration + snapshot safety
+grabtaculous rollout --dir ./my-site --entry src/app.grab --migrate-file migrations/001_init.grab
+
+# 5. Verify snapshots or roll back cleanly in one command
+grabtaculous snapshot list --dir ./my-site
+grabtaculous snapshot verify &lt;deploy-id&gt; --dir ./my-site
+grabtaculous rollback &lt;deploy-id&gt; --dir ./my-site
+
+# 6. Start the stealth loopback supervisor daemon for local/SSH-tunneled control
+grabtaculous daemon --listen 127.0.0.1:9440 --state-dir ./.grabtaculous</pre>
+
+  <h2>3. Choosing Your Public HTTPS Proxy Layer</h2>
+  <p>Your GRAB/<code>Grisp</code> workers and databases always stay tucked behind <code>127.0.0.1</code>. Only your chosen edge proxy faces visitors, forwarding verified traffic with <code>--trusted-proxy 127.0.0.1</code> so rate limits and logs always see real client IPs.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Option Flag</th>
+        <th>Generated File</th>
+        <th>Best For</th>
+        <th>HTTPS Certificate Handling</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>--edge-proxy caddy</code> (Default)</td>
+        <td><code>deploy/Caddyfile</code></td>
+        <td>Almost every VPS (fastest, simplest setup)</td>
+        <td>Built-in zero-config Let's Encrypt &amp; ZeroSSL auto-renewal</td>
+      </tr>
+      <tr>
+        <td><code>--edge-proxy nginx</code></td>
+        <td><code>deploy/nginx.conf</code></td>
+        <td>Teams already standardized on Nginx + Certbot</td>
+        <td>Certbot TLS paths + HTTP-to-HTTPS redirect + WebSocket/HTMX streaming headers</td>
+      </tr>
+      <tr>
+        <td><code>--edge-proxy cloudflare-tunnel</code></td>
+        <td><code>deploy/cloudflared.yml</code></td>
+        <td>Maximum stealth: zero open inbound firewall ports (80/443 closed)</td>
+        <td>Outbound encrypted tunnel through Cloudflare Edge TLS</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. Curated 1-Click Marketplace Catalog (<code>v{v}</code>)</h2>
+  <p>Every template below is embedded inside the <code>grabtaculous</code> binary and verified against a SHA-256 digest index (<code>GRABTAC-E201</code> blocks tampered templates automatically).</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Blueprint ID</th>
+        <th>Category</th>
+        <th>What It Provisions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>grablab-grex-bundle</code></td><td>Flagship Bundle</td><td>GrabLab CMS v1.0.1 + Grex Builder v1.0.0 + Groxy AI v1.0.0 sidecar</td></tr>
+      <tr><td><code>grablab-full-stack</code></td><td>Enterprise Stack</td><td>GrabLab CMS bundle paired with private loopback PostgreSQL 18</td></tr>
+      <tr><td><code>grab-grisp-app</code></td><td>Core App</td><td>Standalone hardened GRAB v1.1.0 <code>Grisp</code> worker application</td></tr>
+      <tr><td><code>postgres-18</code> / <code>mariadb-11-8</code> / <code>redis-standalone</code></td><td>Private Data Stores</td><td>Loopback-only (<code>127.0.0.1</code>) relational DB and rate-limit/session cache</td></tr>
+      <tr><td><code>analytics</code> / <code>object-storage</code> / <code>automation</code> / <code>webmail</code></td><td>Self-Hosted Companions</td><td>Plausible privacy analytics, Garage S3 media bucket, n8n workflows, SnappyMail</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5. How Zero-Downtime Rollouts &amp; Snapshot Rollbacks Protect You</h2>
+  <div class="callout">
+    <strong>Fail-Closed Safety Guarantee:</strong> Live visitor connections are never cut over to broken code. If <code>grabman solve --verify</code>, <code>grabman dna validate</code>, <code>grab check</code>, or container security auditing fails, Grabtaculous stops in Stage 1 without changing a single live file.
+  </div>
+  <ol>
+    <li><strong>Stage 1 — Preflight:</strong> Verifies lockfile hashes via <code>grabman solve --verify</code>, validates <code>Site DNA</code> via <code>grabman dna validate</code>, compiles your <code>.grab</code> entry cleanly with <code>grab check</code>, and audits Compose/secret hygiene.</li>
+    <li><strong>Stage 2 — Pre-Deploy Snapshot:</strong> Saves a SHA-256 manifest (<code>snapshot.json</code>) archiving <code>grabman.lock</code>, Compose/Caddy/Nginx configs, <code>src/</code>, <code>views/</code>, <code>theme/</code>, <code>public/</code>, <code>storage/site-dna.json</code>, and optional DB checkpoints.</li>
+    <li><strong>Stage 3 — Explicit Migration:</strong> Runs idempotent <code>grab migrate --allow-db &lt;alias&gt;:migrate</code> before shifting live traffic (<code>ADR-024f</code>).</li>
+    <li><strong>Stage 4 — Rolling <code>Grisp</code> Worker Swap:</strong> Starts new workers, polls <code>/_ready</code> until HTTP <code>200</code> + asset parity pass, switches the proxy upstream, and gently drains old workers over a 30-second window.</li>
+    <li><strong>Stage 5 &amp; 6 — Post-Cutover Smoke &amp; Auto-Rollback:</strong> Confirms live smoke URLs return healthy responses. On any mismatch, automatically restores every file byte-for-byte from the pre-deploy snapshot (<code>GRABTAC-E701</code> guarantees tamper checks before restore).</li>
+  </ol>
+
+  <h2>6. Ecosystem Compatibility (Step 5)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ecosystem Layer</th>
+        <th>Repository</th>
+        <th>Verified Compatible Range</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Core Language, VM &amp; Grisp Server</td><td><code>urbanspress/grab</code></td><td><code>&gt;= v1.1.0 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Reactive Frontend &amp; 20-Element Library</td><td><code>urbanspress/grex-js</code></td><td><code>&gt;= v1.0.0 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Flagship Zero-Plugin CMS</td><td><code>urbanspress/grablab-cms</code></td><td><code>&gt;= v1.0.1 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Exclusive Visual Theme &amp; Studio</td><td><code>urbanspress/grex-builder</code></td><td><code>&gt;= v1.0.0 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Autonomous Design, Content &amp; SEO Agent</td><td><code>urbanspress/groxy-ai</code></td><td><code>&gt;= v1.0.0 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Scaffolder, Orchestrator &amp; VPS Panel</td><td><code>urbanspress/grabman</code>, <code>grabtaculous</code>, <code>gashboard</code></td><td><code>&gt;= v0.1.0</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <strong>Grabtaculous v{v}</strong> · MIT License · Part of the Post-1.0 GRAB Ecosystem (`urbanspress/grabtaculous.progress` &amp; `urbanspress/grabtaculous.stable`). Ready for Layer 3 desktop control via <strong>Gashboard v0.1.0</strong> over SSH.
+  </div>
+
+</body>
+</html>
+"""
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate Grabtaculous HTML + PDF release guide.")
+    parser.add_argument("version", help="Release version without leading 'v', e.g. 0.1.0")
+    args = parser.parse_args()
+    version = args.version.lstrip("v").strip()
+
+    HTML_DIR.mkdir(parents=True, exist_ok=True)
+    PDF_DIR.mkdir(parents=True, exist_ok=True)
+
+    html_path = HTML_DIR / f"Grabtaculous-v{version}-Guide.html"
+    pdf_path = PDF_DIR / f"Grabtaculous-v{version}-Guide.pdf"
+
+    html_path.write_text(build_html(version), encoding="utf-8")
+    print(f"Wrote {html_path}")
+
+    browser = find_browser()
+    if not browser:
+        print("Error: Chrome or Microsoft Edge executable not found for headless PDF generation.", file=sys.stderr)
+        return 1
+
+    if pdf_path.exists():
+        pdf_path.unlink()
+
+    file_url = html_path.resolve().as_uri()
+    cmd = [
+        browser,
+        "--headless=new",
+        "--disable-gpu",
+        "--no-sandbox",
+        "--no-pdf-header-footer",
+        f"--print-to-pdf={pdf_path.resolve()}",
+        file_url,
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if res.returncode != 0 or not pdf_path.is_file() or pdf_path.stat().st_size == 0:
+        print(f"Error rendering PDF with {browser} (code={res.returncode}): {res.stderr}", file=sys.stderr)
+        return 1
+
+    print(f"Wrote {pdf_path} ({pdf_path.stat().st_size} bytes)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
