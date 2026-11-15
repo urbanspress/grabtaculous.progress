@@ -27,7 +27,7 @@ func LocateGrabBinary(explicit string) string {
 	})
 }
 
-// LocateGrabmanBinary finds the grabman v0.1.0 executable cleanly.
+// LocateGrabmanBinary finds the grabman v1.0.0 executable cleanly.
 func LocateGrabmanBinary(explicit string) string {
 	return locateBinary(explicit, "GRABMAN_BIN", "grabman", []string{
 		`C:\Program Files\grabman\grabman.exe`,
@@ -100,7 +100,7 @@ func RunPreflight(ctx context.Context, opts PreflightOptions) (*PreflightReport,
 			return nil, safepath.NewError(
 				safepath.ErrPreflightFailed,
 				"grabman CLI binary not found for mandatory lockfile verification",
-				"Install grabman v0.1.0 on PATH or pass --grabman-bin.",
+				"Install grabman v1.0.0 on PATH or pass --grabman-bin.",
 			)
 		}
 		cmd := exec.CommandContext(ctx, grabmanBin, "solve", "--dir", realWS, "--verify", "--json")
@@ -133,7 +133,7 @@ func RunPreflight(ctx context.Context, opts PreflightOptions) (*PreflightReport,
 	}
 	for _, dnaPath := range dnaTargets {
 		if grabmanBin == "" {
-			return nil, safepath.NewError(safepath.ErrPreflightFailed, "grabman binary required to validate Site DNA", "Install grabman v0.1.0 or set GRABMAN_BIN.")
+			return nil, safepath.NewError(safepath.ErrPreflightFailed, "grabman binary required to validate Site DNA", "Install grabman v1.0.0 or set GRABMAN_BIN.")
 		}
 		cmd := exec.CommandContext(ctx, grabmanBin, "dna", "validate", dnaPath, "--json")
 		out, runErr := cmd.CombinedOutput()
@@ -321,7 +321,7 @@ func ExecuteRollout(ctx context.Context, opts RolloutOptions) (*RolloutResult, e
 	}
 
 	res := &RolloutResult{
-		SchemaVersion: "0.1.0",
+		SchemaVersion: "1.0.0",
 		Workspace:     realWS,
 		AppName:       appName,
 		Stages:        []StageEvent{},

@@ -80,7 +80,7 @@ func (s *InventoryStore) loadUnlocked() (*InventoryDocument, error) {
 	if _, statErr := os.Stat(abs); os.IsNotExist(statErr) {
 		nowStr := s.now().UTC().Format(time.RFC3339)
 		return &InventoryDocument{
-			SchemaVersion: "0.1.0",
+			SchemaVersion: "1.0.0",
 			Nodes: map[string]NodeRecord{
 				"local": {
 					ID:             "local",

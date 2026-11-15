@@ -37,6 +37,8 @@ def find_browser() -> str | None:
 
 def build_html(version: str) -> str:
     v = html.escape(version)
+    tier_label = "Step 5 Production Freeze" if version == "1.0.0" else "PRE-1.0"
+    companion_pin = "&gt;= v0.1.0 (&lt; v2.0.0) (v1.0.0 Frozen)" if version == "1.0.0" else "&gt;= v0.1.0"
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -202,7 +204,7 @@ def build_html(version: str) -> str:
     <h1>Grabtaculous v{v} — Walkthrough &amp; Operations Guide</h1>
     <p>Plain-English guide to running your stealth loopback server supervisor, deploying locked-down <code>--read-only</code> containers, shipping zero-downtime updates, and rolling back safely in one click.</p>
     <div class="badges">
-      <span class="badge">Release v{v} (PRE-1.0)</span>
+      <span class="badge">Release v{v} ({tier_label})</span>
       <span class="badge">Pure Go Stdlib · CGO_ENABLED=0</span>
       <span class="badge">127.0.0.1 / SSH Stealth Only</span>
       <span class="badge">Read-Only + SHA-256 Pinning</span>
@@ -210,7 +212,7 @@ def build_html(version: str) -> str:
   </div>
 
   <h2>1. What Grabtaculous Does (In Plain English)</h2>
-  <p>Once <code>grabman v0.1.0</code> scaffolds your site or stack, <strong>Grabtaculous</strong> is the server-side engine that actually launches, protects, updates, and rescues it on your VPS—without opening public admin ports that hackers scan for.</p>
+  <p>Once <code>grabman v{v}</code> scaffolds your site or stack, <strong>Grabtaculous</strong> is the server-side engine that actually launches, protects, updates, and rescues it on your VPS—without opening public admin ports that hackers scan for.</p>
 
   <div class="card-grid">
     <div class="card">
@@ -336,12 +338,12 @@ grabtaculous daemon --listen 127.0.0.1:9440 --state-dir ./.grabtaculous</pre>
       <tr><td>Flagship Zero-Plugin CMS</td><td><code>urbanspress/grablab-cms</code></td><td><code>&gt;= v1.0.1 (&lt; v2.0.0)</code></td></tr>
       <tr><td>Exclusive Visual Theme &amp; Studio</td><td><code>urbanspress/grex-builder</code></td><td><code>&gt;= v1.0.0 (&lt; v2.0.0)</code></td></tr>
       <tr><td>Autonomous Design, Content &amp; SEO Agent</td><td><code>urbanspress/groxy-ai</code></td><td><code>&gt;= v1.0.0 (&lt; v2.0.0)</code></td></tr>
-      <tr><td>Scaffolder, Orchestrator &amp; VPS Panel</td><td><code>urbanspress/grabman</code>, <code>grabtaculous</code>, <code>gashboard</code></td><td><code>&gt;= v0.1.0</code></td></tr>
+      <tr><td>Scaffolder, Orchestrator &amp; VPS Panel</td><td><code>urbanspress/grabman</code>, <code>grabtaculous</code>, <code>gashboard</code></td><td><code>{companion_pin}</code></td></tr>
     </tbody>
   </table>
 
   <div class="footer">
-    <strong>Grabtaculous v{v}</strong> · MIT License · Part of the Post-1.0 GRAB Ecosystem (`urbanspress/grabtaculous.progress` &amp; `urbanspress/grabtaculous.stable`). Ready for Layer 3 desktop control via <strong>Gashboard v0.1.0</strong> over SSH.
+    <strong>Grabtaculous v{v}</strong> · MIT License · Part of the Post-1.0 GRAB Ecosystem (<code>urbanspress/grabtaculous.progress</code> &amp; <code>urbanspress/grabtaculous.stable</code>). Controlled cleanly over encrypted SSH by <strong>Gashboard v{v}</strong>.
   </div>
 
 </body>

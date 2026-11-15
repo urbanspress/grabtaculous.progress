@@ -2,6 +2,17 @@
 
 All notable changes to **Grabtaculous** (Step 5 Multi-Server Supervisor, `--read-only` Container Orchestrator, Curated 1-Click Marketplace & Zero-Downtime Rollout Engine) are documented in this file.
 
+## [v1.0.0] — 2026-11-15
+
+### Production Stability Freeze (`GRABTACULOUS-SPEC-100`)
+- **SemVer Tier:** `v1.0.0 — Step 5 Production Stability Freeze` (`100%` backwards compatible with all `v0.1.0` deployments, `grabman v0.1.0..v1.0.0`, and **Gashboard v1.0.0** SSH tunnels).
+- **Daemon & CLI `v1.0.0` Contract Freeze:**
+  - Promoted `Version` (`cmd/grabtaculous/main.go`), `DaemonVersion` (`internal/daemon/server.go`), catalog metadata (`catalog/index.json`), deploy/inventory/rollout/snapshot schemas, and generated Compose/edge comment headers to **`1.0.0`**.
+  - Aligned preflight `grabman` remediation and binary integration cleanly with **`grabman v1.0.0`**.
+  - Verified zero vulnerabilities via `govulncheck ./...` (`go1.27.4`), `go mod verify`, `go vet ./...`, and `go test -count=1 ./...` (`100%` pass).
+- **Cross-Platform Release Artifacts:**
+  - Built static `CGO_ENABLED=0` binaries for `windows/amd64`, `linux/amd64`, and `linux/arm64`, alongside [`docs/releases/pdf/Grabtaculous-v1.0.0-Guide.pdf`](docs/releases/pdf/Grabtaculous-v1.0.0-Guide.pdf), `grabtaculous-v1.0.0-bundle.zip`, and `SHA256SUMS.txt`.
+
 ## [v0.1.0] — 2026-11-15
 
 ### Release Scope (`PRE-1.0` Milestone 1)

@@ -92,7 +92,7 @@ func DeployBlueprint(ctx context.Context, opts DeployOptions) (*DeployResult, er
 			if _, statErr := os.Stat(gmAbs); statErr == nil {
 				grabmanBin := rollout.LocateGrabmanBinary(opts.GrabmanBinary)
 				if grabmanBin == "" {
-					return nil, safepath.NewError(safepath.ErrPreflightFailed, "grabman binary not found to verify workspace grabman.lock", "Install grabman v0.1.0 or pass --grabman-bin.")
+					return nil, safepath.NewError(safepath.ErrPreflightFailed, "grabman binary not found to verify workspace grabman.lock", "Install grabman v1.0.0 or pass --grabman-bin.")
 				}
 				cmd := exec.CommandContext(ctx, grabmanBin, "solve", "--dir", targetWS, "--verify", "--json")
 				if out, runErr := cmd.CombinedOutput(); runErr != nil {
@@ -229,7 +229,7 @@ func DeployBlueprint(ctx context.Context, opts DeployOptions) (*DeployResult, er
 	}
 
 	return &DeployResult{
-		SchemaVersion:     "0.1.0",
+		SchemaVersion:     "1.0.0",
 		BlueprintID:       bp.ID,
 		BlueprintVersion:  bp.Version,
 		BlueprintSHA256:   bp.VerifiedManifestSHA256,

@@ -23,7 +23,7 @@ import (
 )
 
 // Version identifies the release version (overridable via -ldflags "-X main.Version=...").
-var Version = "0.1.0"
+var Version = "1.0.0"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -97,7 +97,7 @@ func cmdVersion(args []string, stdout, stderr io.Writer) int {
 		writeJSON(stdout, map[string]any{
 			"name":           "grabtaculous",
 			"version":        Version,
-			"schema_version": "0.1.0",
+			"schema_version": "1.0.0",
 			"default_bind":   daemon.DefaultListenAddr,
 		})
 		return 0

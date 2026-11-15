@@ -1,7 +1,7 @@
 # Grabtaculous Roadmap
 
 **Repositories:** `urbanspress/grabtaculous.progress` (active development) / `urbanspress/grabtaculous.stable` (verified releases)  
-**Foundational Baselines:** **GRAB `v1.1.0`**, **Grex JS `v1.0.0`**, **GrabLab CMS `v1.0.1`**, **Grex Theme Builder `v1.0.0`**, **Groxy AI `v1.0.0`**, and **`grabman v0.1.0`**
+**Foundational Baselines:** **GRAB `v1.1.0`**, **Grex JS `v1.0.0`**, **GrabLab CMS `v1.0.1`**, **Grex Theme Builder `v1.0.0`**, **Groxy AI `v1.0.0`**, and **`grabman v1.0.0`**
 
 **Status Labels:**
 - **Specification in Review** — Specification drafted and awaiting explicit project-owner approval before any Go implementation code is written.
@@ -36,8 +36,8 @@ Planned Scope:
 
 ## `v1.0.0` — Production Freeze, Hardened Linux Daemon Packages & Full 6-Layer E2E Verification
 
-**Status:** Specification in Review ([`specifications/GRABTACULOUS-SPEC-100.md`](../specifications/GRABTACULOUS-SPEC-100.md))
+**Status:** Complete ([`specifications/GRABTACULOUS-SPEC-100.md`](../specifications/GRABTACULOUS-SPEC-100.md) — Released `v1.0.0`, Guide: [`Grabtaculous-v1.0.0-Guide.pdf`](releases/pdf/Grabtaculous-v1.0.0-Guide.pdf))
 
-Approved-Spec / Review Scope:
-- Completed pre-`v1.0.0` multi-repository cross-layer audit covering loopback-only daemon binding (`127.0.0.1:9440`), constant-time bearer auth, `known_hosts` host-key pinning, `GRAB-E401` (`GRABTAC-E201`) path confinement, zero-shell argv invocation, zero-downtime `Grisp` drain/rollback, and `go test -count=1 ./...` / `govulncheck ./...` (`0` vulnerabilities) (`specifications/GRABTACULOUS-SPEC-100.md`).
-- Pending explicit owner approval of `specifications/GRABTACULOUS-SPEC-100.md`: freeze `v1.0.0` CLI/daemon contracts, build static Linux (`amd64`/`arm64`) & Windows (`amd64`) binaries, generate walkthrough PDF, and synchronize `v1.0.0` promotion to `origin` and `stable`.
+Completed Scope:
+- Completed Step 5 multi-repository cross-layer audit covering loopback-only daemon binding (`127.0.0.1:9440`), constant-time bearer auth, `known_hosts` host-key pinning, `GRAB-E401` (`GRABTAC-E201`) path confinement, zero-shell argv invocation, zero-downtime `Grisp` drain/rollback, and `go test -count=1 ./...` / `govulncheck ./...` (`0` vulnerabilities, [`specifications/GRABTACULOUS-SPEC-100.md`](../specifications/GRABTACULOUS-SPEC-100.md)).
+- Froze `v1.0.0` CLI/daemon contracts (`Version = "1.0.0"`, `DaemonVersion = "1.0.0"`, `catalog/index.json` `schema_version = "1.0.0"`), aligned with `grabman v1.0.0`, built static Linux (`amd64`/`arm64`) & Windows (`amd64`) binaries, generated `docs/releases/pdf/Grabtaculous-v1.0.0-Guide.pdf`, and synchronized `v1.0.0` promotion to `origin` (`urbanspress/grabtaculous.progress`) and `stable` (`urbanspress/grabtaculous.stable`).

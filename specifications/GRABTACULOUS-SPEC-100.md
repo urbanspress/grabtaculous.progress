@@ -1,6 +1,6 @@
 # GRABTACULOUS-SPEC-100: Grabtaculous `v1.0.0` Production Contract Freeze & Cross-Layer Security Audit
 
-- **Status:** Specification in Review (Awaiting Project-Owner Approval Prior to `v1.0.0` Implementation & Release Tagging)
+- **Status:** Approved & Complete (`v1.0.0` Step 5 Production Stability Freeze Implemented, Verified & Synchronized)
 - **Target Release:** `v1.0.0` (`MAJOR.MINOR.PATCH` — Step 5 Supervisor Daemon, `--read-only` Container Orchestrator & Rollout Production Freeze)
 - **Foundational Baselines:**
   - **GRAB:** `v1.1.0` (`urbanspress/grab` — `Grisp` supervisor, `/_health`, `/_ready`, `grab check`, `grab migrate`, `ADR-005`, `ADR-017`, `ADR-024f`, `ADR-025g`, `ADR-027b`)
@@ -73,9 +73,9 @@ Upon project-owner approval of this specification, the `v1.0.0` release implemen
 
 ---
 
-## 4. `v1.0.0` Approval & Release Acceptance Gates
+## 4. `v1.0.0` Approval & Release Acceptance Gates (Completed)
 
-No `v1.0.0` Go code changes or version tags may be written until the project owner approves this specification. Once approved:
-1. Update `Version` / `DaemonVersion` to `"1.0.0"` and `"schema_version"` handling to support both `"0.1.0"` and `"1.0.0"` cleanly in `C:\Development\grabtaculous`.
-2. Update CLI/daemon tests (`tests/daemon_and_cli_test.go`, etc.) and verify `go build ./...`, `go vet ./...`, `go test -count=1 ./...` (`100%` pass), `govulncheck ./...` (`0` vulnerabilities), and live E2E integration with `grabman v1.0.0` and `gashboard v1.0.0`.
-3. Build static `CGO_ENABLED=0` binaries (`windows/amd64`, `linux/amd64`, `linux/arm64`), generate `docs/releases/pdf/Grabtaculous-v1.0.0-Guide.pdf` and `SHA256SUMS.txt`, run `sync-notebook-sources.ps1`, and publish synchronized `v1.0.0` releases on `urbanspress/grabtaculous.progress` and `urbanspress/grabtaculous.stable`.
+Approved by the project owner and verified for Step 5 `v1.0.0` production release:
+1. [x] Update `Version` / `DaemonVersion` to `"1.0.0"` and `"schema_version"` handling to support both `"0.1.0"` and `"1.0.0"` cleanly in `C:\Development\grabtaculous`.
+2. [x] Update CLI/daemon tests (`tests/daemon_and_cli_test.go`, etc.) and verify `go build ./...`, `go vet ./...`, `go test -count=1 ./...` (`100%` pass), `govulncheck ./...` (`0` vulnerabilities), `go mod verify`, and live E2E integration with `grabman v1.0.0` and `gashboard v1.0.0`.
+3. [x] Build static `CGO_ENABLED=0` binaries (`windows/amd64`, `linux/amd64`, `linux/arm64`), generate `docs/releases/pdf/Grabtaculous-v1.0.0-Guide.pdf` and `SHA256SUMS.txt`, run `sync-notebook-sources.ps1`, and publish synchronized `v1.0.0` releases on `urbanspress/grabtaculous.progress` and `urbanspress/grabtaculous.stable`.

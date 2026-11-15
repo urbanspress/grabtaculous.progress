@@ -164,7 +164,7 @@ func Rollback(ctx context.Context, opts RollbackOptions) (*RollbackResult, error
 	}
 
 	return &RollbackResult{
-		SchemaVersion:  "0.1.0",
+		SchemaVersion:  "1.0.0",
 		DeployID:       rec.DeployID,
 		Workspace:      realWS,
 		Restored:       true,

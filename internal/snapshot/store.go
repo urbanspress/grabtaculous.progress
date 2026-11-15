@@ -241,7 +241,7 @@ func Create(ctx context.Context, opts CreateOptions) (*Record, error) {
 	}
 
 	rec := &Record{
-		SchemaVersion: "0.1.0",
+		SchemaVersion: "1.0.0",
 		DeployID:      deployID,
 		AppName:       appName,
 		Workspace:     realWS,
