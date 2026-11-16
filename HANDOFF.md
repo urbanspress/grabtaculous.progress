@@ -4,6 +4,7 @@
 - **Current Milestone State:**
   - **`v0.1.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md))
   - **`v1.0.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-100.md`](specifications/GRABTACULOUS-SPEC-100.md), [`docs/ROADMAP.md`](docs/ROADMAP.md))
+  - **`v1.1.0 — Curated 1-Click SearXNG Private Metasearch Blueprint` — `Status: Planned — Backwards-Compatible Minor Feature`** (adds a hardened `--read-only`, loopback-bound (`127.0.0.1`), digest-pinned **SearXNG** container template to `catalog/` so **Groxy AI** gets unlimited private real-time search results with zero external API fees)
 - **Pending `v1.0.0` Tasks:** None (`0` pending items).
 - **Release Readiness:** Step 5 Layer 2 (`Grabtaculous v1.0.0`) is frozen for **Gashboard v1.0.0** SSH tunnels and **Step 6 (`Groxy Desk`)** production workloads.
 

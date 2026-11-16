@@ -41,3 +41,13 @@ Planned Scope:
 Completed Scope:
 - Completed Step 5 multi-repository cross-layer audit covering loopback-only daemon binding (`127.0.0.1:9440`), constant-time bearer auth, `known_hosts` host-key pinning, `GRAB-E401` (`GRABTAC-E201`) path confinement, zero-shell argv invocation, zero-downtime `Grisp` drain/rollback, and `go test -count=1 ./...` / `govulncheck ./...` (`0` vulnerabilities, [`specifications/GRABTACULOUS-SPEC-100.md`](../specifications/GRABTACULOUS-SPEC-100.md)).
 - Froze `v1.0.0` CLI/daemon contracts (`Version = "1.0.0"`, `DaemonVersion = "1.0.0"`, `catalog/index.json` `schema_version = "1.0.0"`), aligned with `grabman v1.0.0`, built static Linux (`amd64`/`arm64`) & Windows (`amd64`) binaries, generated `docs/releases/pdf/Grabtaculous-v1.0.0-Guide.pdf`, and synchronized `v1.0.0` promotion to `origin` (`urbanspress/grabtaculous.progress`) and `stable` (`urbanspress/grabtaculous.stable`).
+
+---
+
+## `v1.1.0` — Curated 1-Click SearXNG Private Metasearch Blueprint
+
+**Status:** Planned — Backwards-Compatible Minor Feature
+
+Planned Scope:
+- Adds a hardened `--read-only`, loopback-bound (`127.0.0.1`), digest-pinned **SearXNG** container template to `catalog/` so **Groxy AI** gets unlimited private real-time search results with zero external API fees.
+
