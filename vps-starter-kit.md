@@ -178,8 +178,11 @@ http {
 }
 ```
 
-### 3.2 `/etc/nginx/sites-available/grisp.conf` (`HTTP/3` + Domain-Free Default Welcome + `X-Accel-Redirect`)
-By default (`grabtaculous edge render` without `--domain`), `grisp.conf` never hardcodes a domain name—it emits a domain-free `default_server` (`server_name _;`) serving the Next.js-inspired, zero-`<div>`, **Grex JS v1.0.0** animated **Grisp Default Welcome & Readiness Page** from `/var/www/grisp-welcome/` while keeping all Grisp worker pool routes (`127.0.0.1:8765–8770`), `X-Accel-Redirect`, WebSocket, and loopback `/_health` + `/_ready` endpoints armed. Passing `--domain <domain>` switches to `server_name <domain> www.<domain>;` with Let's Encrypt TLS certificates.
+### 3.2 `/etc/nginx/sites-available/grisp.conf` (`HTTP/3` + Fail-Closed Catch-All `444` + Loopback Welcome)
+By default (`grabtaculous edge render` without `--domain`), `grisp.conf` never hardcodes a domain name and never serves the welcome page to unconfigured public domains:
+- **Unconfigured public domains & IP scans (`server_name _; default_server`):** Immediately dropped on port `80` (`return 444;`) and rejected at TLS handshake on port `443` (`ssl_reject_handshake on;`).
+- **Private Loopback Welcome (`server_name localhost 127.0.0.1;` with `allow 127.0.0.1; allow ::1; deny all;`):** Serves the Next.js-inspired, zero-`<div>`, **Grex JS v1.0.0** animated **Grisp Default Welcome & Readiness Page** from `/var/www/grisp-welcome/` exclusively over SSH tunnel / localhost alongside loopback `/_health` + `/_ready`.
+- Passing `--domain <domain>` (plus optional `--http-only` when TLS certs are not yet provisioned) switches to `server_name <domain> www.<domain>;` routing to that site's Dockerized Grisp worker port pool.
 
 ```nginx
 upstream grisp_backend {
@@ -195,16 +198,34 @@ upstream grisp_backend {
     keepalive_timeout 60s;
 }
 
+# Catch-all HTTP (Port 80): drop unconfigured public domains and direct IP requests immediately
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name _;
+    return 444;
+}
+
+# Catch-all HTTPS (Port 443): reject TLS handshakes for any unconfigured domain or IP
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
+}
+
+# Private Loopback Grisp Welcome & Readiness Page (SSH tunnel / localhost only)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name localhost 127.0.0.1;
+
+    allow 127.0.0.1;
+    allow ::1;
+    deny all;
+
     root /var/www/grisp-welcome;
     index index.html;
-
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
 
     location = / {
         try_files /index.html =404;

@@ -451,28 +451,86 @@ func TestDomainFreeDefaultGrispConfAndGrexWelcomePage(t *testing.T) {
 		t.Fatalf("RenderGrispSiteConf default mode failed: %v", err)
 	}
 	grisp := string(grispBytes)
-	for _, bad := range []string{"allenmiles.com", "bookstore.example.com", "/etc/letsencrypt/live/_/"} {
+	for _, bad := range []string{
+		"allenmiles.com",
+		"urbanspress.com",
+		"bookstore.example.com",
+		"/etc/letsencrypt/live/_/",
+		"grisp-default.crt",
+		"grisp-default.key",
+	} {
 		if strings.Contains(grisp, bad) {
-			t.Fatalf("domain-free grisp.conf leaked hardcoded domain/path %q:\n%s", bad, grisp)
+			t.Fatalf("domain-free grisp.conf leaked hardcoded domain/cert %q:\n%s", bad, grisp)
 		}
 	}
 	for _, want := range []string{
 		"listen 80 default_server;",
 		"listen [::]:80 default_server;",
-		"listen 443 quic default_server reuseport;",
+		"return 444;",
 		"listen 443 ssl default_server;",
+		"listen [::]:443 ssl default_server;",
+		"ssl_reject_handshake on;",
 		"server_name _;",
+		"server_name localhost 127.0.0.1;",
+		"allow 127.0.0.1;",
+		"allow ::1;",
+		"deny all;",
 		"root /var/www/grisp-welcome;",
-		"ssl_certificate /etc/nginx/ssl/grisp-default.crt;",
-		"ssl_certificate_key /etc/nginx/ssl/grisp-default.key;",
 		"location ^~ /grex/",
 		"location ~ ^/_(health|ready)$",
-		"location ^~ /_protected_media/",
-		"location ~ ^/_protected_b2/",
 	} {
 		if !strings.Contains(grisp, want) {
 			t.Fatalf("domain-free grisp.conf missing %q:\n%s", want, grisp)
 		}
+	}
+
+	// Verify explicit domain HTTP-only mode (--domain urbanspress.com --http-only)
+	httpOnlyOpts := edge.DefaultNginxConfigOptions("urbanspress.com")
+	httpOnlyOpts.HTTPOnly = true
+	httpOnlyBytes, err := edge.RenderGrispSiteConf(httpOnlyOpts)
+	if err != nil {
+		t.Fatalf("RenderGrispSiteConf HTTPOnly failed: %v", err)
+	}
+	httpOnlyConf := string(httpOnlyBytes)
+	for _, want := range []string{
+		"listen 80;",
+		"listen [::]:80;",
+		"server_name urbanspress.com www.urbanspress.com;",
+		"location ^~ /.well-known/acme-challenge/",
+		"proxy_pass http://grisp_backend;",
+		"location ^~ /_protected_media/",
+	} {
+		if !strings.Contains(httpOnlyConf, want) {
+			t.Fatalf("HTTP-only domain grisp.conf missing %q:\n%s", want, httpOnlyConf)
+		}
+	}
+	for _, bad := range []string{"default_server", "ssl_certificate", "return 301 https://", "/var/www/grisp-welcome"} {
+		if strings.Contains(httpOnlyConf, bad) {
+			t.Fatalf("HTTP-only domain grisp.conf must not contain %q:\n%s", bad, httpOnlyConf)
+		}
+	}
+
+	// Verify explicit domain HTTPS + HTTP/3 mode (--domain allenmiles.com)
+	tlsOpts := edge.DefaultNginxConfigOptions("allenmiles.com")
+	tlsBytes, err := edge.RenderGrispSiteConf(tlsOpts)
+	if err != nil {
+		t.Fatalf("RenderGrispSiteConf TLS mode failed: %v", err)
+	}
+	tlsConf := string(tlsBytes)
+	for _, want := range []string{
+		"server_name allenmiles.com www.allenmiles.com;",
+		"listen 443 quic reuseport;",
+		"http2 on;",
+		"ssl_certificate /etc/letsencrypt/live/allenmiles.com/fullchain.pem;",
+		"ssl_certificate_key /etc/letsencrypt/live/allenmiles.com/privkey.pem;",
+		"proxy_pass http://grisp_backend;",
+	} {
+		if !strings.Contains(tlsConf, want) {
+			t.Fatalf("TLS domain grisp.conf missing %q:\n%s", want, tlsConf)
+		}
+	}
+	if strings.Contains(tlsConf, "default_server") || strings.Contains(tlsConf, "/var/www/grisp-welcome") {
+		t.Fatalf("TLS domain grisp.conf must not contain default_server or welcome root:\n%s", tlsConf)
 	}
 
 	welcomeBytes, err := edge.RenderGrispWelcomeHTML(opts)
@@ -499,7 +557,7 @@ func TestDomainFreeDefaultGrispConfAndGrexWelcomePage(t *testing.T) {
 		}
 	}
 
-	// Verify `grabtaculous edge render` (without --domain) produces domain-free grisp.conf & Grex welcome assets
+	// Verify `grabtaculous edge render` (without --domain) produces catch-all 444 + loopback grisp.conf & Grex welcome assets
 	bin := buildGrabtaculousCLI(t)
 	defaultOut := filepath.Join(t.TempDir(), "default-edge")
 	out, code := runGrabtacCLI(t, bin, "edge", "render", "--profile", "vps-8c-16g", "--out-dir", defaultOut, "--json")
@@ -520,5 +578,28 @@ func TestDomainFreeDefaultGrispConfAndGrexWelcomePage(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(defaultOut, "etc", "nginx", "sites-available", "wordpress-fpm.conf")); err == nil {
 		t.Fatalf("did not expect wordpress-fpm.conf when no domain or --wp-domain was supplied")
+	}
+
+	// Verify CLI `--domain urbanspress.com --http-only --ports 8771,8772 --upstream-name urbanspress_backend`
+	httpOutDir := filepath.Join(t.TempDir(), "http-only-edge")
+	out, code = runGrabtacCLI(t, bin, "edge", "render", "--profile", "vps-8c-16g", "--domain", "urbanspress.com", "--http-only", "--ports", "8771,8772", "--upstream-name", "urbanspress_backend", "--out-dir", httpOutDir, "--json")
+	if code != 0 {
+		t.Fatalf("edge render --http-only CLI failed (code=%d): %s", code, out)
+	}
+	renderedSite, err := os.ReadFile(filepath.Join(httpOutDir, "etc", "nginx", "sites-available", "grisp.conf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	renderedSiteStr := string(renderedSite)
+	for _, want := range []string{
+		"upstream urbanspress_backend {",
+		"server 127.0.0.1:8771 ",
+		"server 127.0.0.1:8772 ",
+		"server_name urbanspress.com www.urbanspress.com;",
+		"proxy_pass http://urbanspress_backend;",
+	} {
+		if !strings.Contains(renderedSiteStr, want) {
+			t.Fatalf("HTTP-only CLI grisp.conf missing %q:\n%s", want, renderedSiteStr)
+		}
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -747,11 +748,13 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 	}
 	sub := strings.TrimSpace(args[0])
 	rest := reorderFlags(args[1:], map[string]bool{
-		"profile":    true,
-		"domain":     true,
-		"wp-domain":  true,
-		"out-dir":    true,
-		"upload-dir": true,
+		"profile":       true,
+		"domain":        true,
+		"wp-domain":     true,
+		"out-dir":       true,
+		"upload-dir":    true,
+		"ports":         true,
+		"upstream-name": true,
 	})
 	switch sub {
 	case "bootstrap-plan":
@@ -774,10 +777,13 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		fs := flag.NewFlagSet("edge render", flag.ContinueOnError)
 		fs.SetOutput(io.Discard)
 		profileID := fs.String("profile", "vps-8c-16g", "Hardware profile ID")
-		domain := fs.String("domain", "_", "Primary Grisp domain (defaults to '_' domain-free default_server welcome mode)")
+		domain := fs.String("domain", "_", "Primary Grisp domain (defaults to '_' catch-all 444 + localhost welcome mode)")
 		wpDomain := fs.String("wp-domain", "", "Optional WordPress companion domain")
 		outDir := fs.String("out-dir", ".", "Target output directory")
 		uploadDir := fs.String("upload-dir", "/var/lib/grisp/uploads/", "Local NVMe upload directory for X-Accel-Redirect")
+		portsFlag := fs.String("ports", "", "Optional comma-separated Grisp worker ports (overrides profile ports)")
+		upstreamName := fs.String("upstream-name", "", "Optional NGINX upstream block name (defaults to grisp_backend)")
+		httpOnly := fs.Bool("http-only", false, "Emit clean port 80 HTTP site blocks without TLS certificates")
 		asJSON := fs.Bool("json", false, "Output JSON")
 		if err := fs.Parse(rest); err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 2)
@@ -790,6 +796,22 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		opts.WorkerProcesses = prof.NginxWorkers
 		opts.UpstreamPorts = prof.GrispPorts
 		opts.UploadAliasDir = *uploadDir
+		opts.HTTPOnly = *httpOnly
+		if strings.TrimSpace(*upstreamName) != "" {
+			opts.UpstreamName = strings.TrimSpace(*upstreamName)
+		}
+		if strings.TrimSpace(*portsFlag) != "" {
+			rawPorts := strings.Split(*portsFlag, ",")
+			customPorts := make([]int, 0, len(rawPorts))
+			for _, raw := range rawPorts {
+				p, convErr := strconv.Atoi(strings.TrimSpace(raw))
+				if convErr != nil || p < 1 || p > 65535 {
+					return writeError(*asJSON, stdout, stderr, safepath.NewError(safepath.ErrSecurityPolicy, fmt.Sprintf("invalid port %q in --ports", raw), "Pass comma-separated TCP ports 1-65535."), 1)
+				}
+				customPorts = append(customPorts, p)
+			}
+			opts.UpstreamPorts = customPorts
+		}
 		if strings.TrimSpace(*wpDomain) != "" {
 			opts.WPDomain = strings.TrimSpace(*wpDomain)
 		}

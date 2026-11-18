@@ -312,7 +312,7 @@ grabtaculous daemon --listen 127.0.0.1:9440 --state-dir ./.grabtaculous</pre>
     </div>
     <div class="card">
       <strong>Zero-Copy Media &amp; Backblaze B2 Streaming</strong>
-      Configures <code>aio threads;</code> and two <code>internal;</code> <code>X-Accel-Redirect</code> endpoints: <code>/_protected_media/</code> for fast local NVMe streaming (<code>directio 8m;</code>) and <code>/_protected_b2/</code> to proxy 300&ndash;800 MB audiobooks directly from Backblaze B2 S3 with <code>proxy_buffering off;</code> and <code>proxy_max_temp_file_size 0;</code> (zero temp-disk bloat). Default <code>grisp.conf</code> renders as domain-free <code>default_server</code> (<code>server_name _;</code>) serving a zero-<code>&lt;div&gt;</code> <strong>Grex JS v1.0.0</strong> animated Grisp Default Welcome &amp; Readiness Page until sites register explicit domains.
+      Configures <code>aio threads;</code> and two <code>internal;</code> <code>X-Accel-Redirect</code> endpoints: <code>/_protected_media/</code> for fast local NVMe streaming (<code>directio 8m;</code>) and <code>/_protected_b2/</code> to proxy 300&ndash;800 MB audiobooks directly from Backblaze B2 S3 with <code>proxy_buffering off;</code> and <code>proxy_max_temp_file_size 0;</code> (zero temp-disk bloat). Default <code>grisp.conf</code> drops unconfigured public domains with <code>return 444;</code> / <code>ssl_reject_handshake on;</code> and restricts the zero-<code>&lt;div&gt;</code> <strong>Grex JS v1.0.0</strong> animated Grisp Default Welcome &amp; Readiness Page strictly to private loopback (<code>localhost 127.0.0.1</code>), while named sites support both <code>--http-only</code> port <code>80</code> and HTTP/3 port <code>443</code> blocks.
     </div>
   </div>
 
