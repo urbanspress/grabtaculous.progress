@@ -41,6 +41,7 @@ BUNDLE_FILES = [
     "HANDOFF.md",
     "LICENSE",
     ".gitignore",
+    "vps-starter-kit.md",
 ]
 
 

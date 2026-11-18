@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"grabtaculous/internal/compose"
 	"grabtaculous/internal/container"
 	"grabtaculous/internal/safepath"
 	"grabtaculous/internal/snapshot"
@@ -71,15 +72,18 @@ type PreflightOptions struct {
 	RequireDigest     bool
 	SkipGrabCheck     bool
 	SkipGrabmanVerify bool
+	DiskStatFn        compose.DiskStatFunc
 }
 
 // PreflightReport summarizes Stage 1 verification outputs.
 type PreflightReport struct {
-	Workspace        string `json:"workspace"`
-	LockfileVerified bool   `json:"lockfile_verified"`
-	SiteDNAValidated bool   `json:"site_dna_validated"`
-	GrabCheckPassed  bool   `json:"grab_check_passed"`
-	ComposeAudited   bool   `json:"compose_audited"`
+	Workspace        string  `json:"workspace"`
+	LockfileVerified bool    `json:"lockfile_verified"`
+	SiteDNAValidated bool    `json:"site_dna_validated"`
+	GrabCheckPassed  bool    `json:"grab_check_passed"`
+	ComposeAudited   bool    `json:"compose_audited"`
+	DiskReserveOK    bool    `json:"disk_reserve_ok"`
+	FreeNVMeGB       float64 `json:"free_nvme_gb"`
 }
 
 // RunPreflight enforces grabman solve --verify, grabman dna validate, grab check, and Compose
@@ -90,6 +94,20 @@ func RunPreflight(ctx context.Context, opts PreflightOptions) (*PreflightReport,
 		return nil, err
 	}
 	rep := &PreflightReport{Workspace: realWS}
+
+	diskStats, diskErr := compose.CheckDiskReserve(realWS, 0, opts.DiskStatFn)
+	if diskErr != nil {
+		return nil, safepath.WrapError(
+			safepath.ErrPreflightFailed,
+			diskErr.Error(),
+			"Maintain >= 15 GB NVMe free space (<= 92% used) before starting rollouts.",
+			diskErr,
+		)
+	}
+	rep.DiskReserveOK = true
+	if diskStats != nil {
+		rep.FreeNVMeGB = diskStats.FreeGB
+	}
 
 	grabmanBin := LocateGrabmanBinary(opts.GrabmanBinary)
 

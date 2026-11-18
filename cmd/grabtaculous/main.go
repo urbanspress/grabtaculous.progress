@@ -15,15 +15,17 @@ import (
 	"syscall"
 
 	"grabtaculous/internal/catalog"
+	"grabtaculous/internal/compose"
 	"grabtaculous/internal/container"
 	"grabtaculous/internal/daemon"
+	"grabtaculous/internal/edge"
 	"grabtaculous/internal/rollout"
 	"grabtaculous/internal/safepath"
 	"grabtaculous/internal/snapshot"
 )
 
 // Version identifies the release version (overridable via -ldflags "-X main.Version=...").
-var Version = "1.0.0"
+var Version = "1.1.0"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -60,6 +62,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdAudit(rest, stdout, stderr)
 	case "status":
 		return cmdStatus(rest, stdout, stderr)
+	case "edge":
+		return cmdEdge(rest, stdout, stderr)
+	case "profile":
+		return cmdProfile(rest, stdout, stderr)
+	case "migrate-export":
+		return cmdMigrateExport(rest, stdout, stderr)
+	case "migrate-import":
+		return cmdMigrateImport(rest, stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "Error: unknown command %q\n\n", sub)
 		printUsage(stderr)
@@ -77,9 +87,13 @@ Usage:
   grabtaculous rollout  [<dir>] [--dir <path>] [--name <app>] [--entry <file.grab>] [--candidate-dna <file.json>] [--migrate-file <migrations.grab>] [--db-config <grab.data.json>] [--db-alias <alias>] [--edge-proxy caddy|nginx|cloudflare-tunnel] [--domain <domain>] [--grab-bin <path>] [--grabman-bin <path>] [--state-dir <dir>] [--json]
   grabtaculous rollback <deploy-id> [--dir <path>] [--state-dir <dir>] [--ready-url <url>] [--json]
   grabtaculous snapshot <list|create|verify <deploy-id>> [--dir <path>] [--name <app>] [--state-dir <dir>] [--json]
-  grabtaculous audit    [--dir <path>] [--file <compose.yml>] [--require-digest] [--json]
-  grabtaculous status   [--dir <path>] [--state-dir <dir>] [--json]
-  grabtaculous version  [--json]
+  grabtaculous audit          [--dir <path>] [--file <compose.yml>] [--require-digest] [--json]
+  grabtaculous status         [--dir <path>] [--state-dir <dir>] [--json]
+  grabtaculous edge           <bootstrap-plan|render> [--profile vps-8c-16g] [--domain <domain>] [--wp-domain <domain>] [--out-dir <dir>] [--json]
+  grabtaculous profile        <list|render <id>> [--domain <domain>] [--out-dir <dir>] [--json]
+  grabtaculous migrate-export [--dir <ws>] [--out <bundle>] [--source-profile vps-6c-12g] [--target-profile vps-8c-16g] [--pg-dump <file>] [--mariadb-dump <file>] [--uploads-dir <dir>] [--grex-dir <dir>] [--json]
+  grabtaculous migrate-import --bundle <bundle> [--dir <ws>] [--target-profile vps-8c-16g] [--uploads-dir <dir>] [--grex-dir <dir>] [--verify-only] [--json]
+  grabtaculous version        [--json]
 `)
 }
 
@@ -724,4 +738,284 @@ func writeError(asJSON bool, stdout, stderr io.Writer, err error, code int) int 
 		fmt.Fprintf(stderr, "Remediation: %s\n", remediation)
 	}
 	return code
+}
+
+func cmdEdge(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "Usage: grabtaculous edge <bootstrap-plan|render> [--profile vps-8c-16g] [--domain <domain>] [--wp-domain <domain>] [--out-dir <dir>] [--json]")
+		return 2
+	}
+	sub := strings.TrimSpace(args[0])
+	rest := reorderFlags(args[1:], map[string]bool{
+		"profile":    true,
+		"domain":     true,
+		"wp-domain":  true,
+		"out-dir":    true,
+		"upload-dir": true,
+	})
+	switch sub {
+	case "bootstrap-plan":
+		fs := flag.NewFlagSet("edge bootstrap-plan", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		codename := fs.String("codename", "noble", "Ubuntu codename")
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		plan := edge.BuildNginx130BootstrapPlan(edge.BootstrapOptions{DistroCodename: *codename, DryRun: true})
+		if *asJSON {
+			writeJSON(stdout, map[string]any{"ok": true, "plan": plan})
+			return 0
+		}
+		fmt.Fprintf(stdout, "NGINX 1.30.6 Official Repository Plan (%s, PGP %s): %d structured-argv steps\n", plan.DistroCodename, plan.PinnedFingerprint, len(plan.Steps))
+		return 0
+
+	case "render":
+		fs := flag.NewFlagSet("edge render", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		profileID := fs.String("profile", "vps-8c-16g", "Hardware profile ID")
+		domain := fs.String("domain", "bookstore.example.com", "Primary Grisp domain")
+		wpDomain := fs.String("wp-domain", "", "Optional WordPress companion domain")
+		outDir := fs.String("out-dir", ".", "Target output directory")
+		uploadDir := fs.String("upload-dir", "/var/lib/grisp/uploads/", "Local NVMe upload directory for X-Accel-Redirect")
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		prof, err := compose.GetProfile(*profileID)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		opts := edge.DefaultNginxConfigOptions(*domain)
+		opts.WorkerProcesses = prof.NginxWorkers
+		opts.UpstreamPorts = prof.GrispPorts
+		opts.UploadAliasDir = *uploadDir
+		if strings.TrimSpace(*wpDomain) != "" {
+			opts.WPDomain = strings.TrimSpace(*wpDomain)
+		}
+		mainConf, err := edge.RenderMainNginxConf(opts)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		grispConf, err := edge.RenderGrispSiteConf(opts)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		wpConf, err := edge.RenderWordPressFPMConf(opts)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		sysctlConf := edge.RenderQuicSysctlConf()
+
+		root, err := safepath.InitRoot(*outDir)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		written := []string{
+			"etc/nginx/nginx.conf",
+			"etc/nginx/sites-available/grisp.conf",
+			"etc/nginx/sites-available/wordpress-fpm.conf",
+			"etc/sysctl.d/99-nginx-quic.conf",
+		}
+		contents := [][]byte{mainConf, grispConf, wpConf, sysctlConf}
+		for i, rel := range written {
+			if err := safepath.WriteFileAtomic(root, rel, contents[i], 0o644, safepath.ResolveOptions{}); err != nil {
+				return writeError(*asJSON, stdout, stderr, err, 1)
+			}
+		}
+		if *asJSON {
+			writeJSON(stdout, map[string]any{"ok": true, "profile": prof.ID, "files_written": written})
+			return 0
+		}
+		fmt.Fprintf(stdout, "Rendered NGINX 1.30.6 edge configuration for profile %s into %s (%d files)\n", prof.ID, root, len(written))
+		return 0
+
+	default:
+		fmt.Fprintf(stderr, "Error: unknown edge subcommand %q (expected bootstrap-plan or render)\n", sub)
+		return 2
+	}
+}
+
+func cmdProfile(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "Usage: grabtaculous profile <list|render <id>> [--domain <domain>] [--out-dir <dir>] [--json]")
+		return 2
+	}
+	sub := strings.TrimSpace(args[0])
+	rest := reorderFlags(args[1:], map[string]bool{
+		"domain":  true,
+		"out-dir": true,
+	})
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("profile list", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		profiles := compose.ListProfiles()
+		if *asJSON {
+			writeJSON(stdout, map[string]any{"ok": true, "profiles": profiles})
+			return 0
+		}
+		for _, p := range profiles {
+			fmt.Fprintf(stdout, "  %-12s  %2d vCPU  %2d GB RAM  %3d GB NVMe  %d Grisp workers (%v)\n", p.ID, p.VCPU, p.RAMGB, p.NVMeGB, p.GrispWorkers, p.GrispPorts)
+		}
+		return 0
+
+	case "render":
+		fs := flag.NewFlagSet("profile render", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		domain := fs.String("domain", "bookstore.example.com", "Primary site domain")
+		outDir := fs.String("out-dir", ".", "Target workspace directory")
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		if fs.NArg() != 1 {
+			return writeError(*asJSON, stdout, stderr, fmt.Errorf("usage: grabtaculous profile render <profile-id> [--domain <domain>] [--out-dir <dir>] [--json]"), 2)
+		}
+		profID := fs.Arg(0)
+		composeYAML, err := compose.RenderProfileCompose(profID, *domain)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		if err := container.AuditComposeYAML("deploy/docker-compose.yml", string(composeYAML), container.AuditOptions{RequireDigest: true}); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		pgConf, err := compose.RenderPostgresConf(profID)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		reloadSh, err := compose.RenderReloadWorkersScript(profID)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		unitFile, err := compose.RenderGrispSystemdUnit(profID)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		backupSh, err := compose.RenderGrispBackupScript(profID)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		root, err := safepath.InitRoot(*outDir)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		files := []struct {
+			rel  string
+			data []byte
+			mode os.FileMode
+		}{
+			{"deploy/docker-compose.yml", composeYAML, 0o644},
+			{"deploy/postgres/postgresql.conf", pgConf, 0o644},
+			{"deploy/reload-workers.sh", reloadSh, 0o755},
+			{"deploy/grisp-stack.service", unitFile, 0o644},
+			{"deploy/grisp-backup.sh", backupSh, 0o755},
+		}
+		written := make([]string, 0, len(files))
+		for _, f := range files {
+			if err := safepath.WriteFileAtomic(root, f.rel, f.data, f.mode, safepath.ResolveOptions{}); err != nil {
+				return writeError(*asJSON, stdout, stderr, err, 1)
+			}
+			written = append(written, f.rel)
+		}
+		if *asJSON {
+			writeJSON(stdout, map[string]any{"ok": true, "profile": profID, "files_written": written})
+			return 0
+		}
+		fmt.Fprintf(stdout, "Rendered hardened %s stack templates into %s (%d files)\n", profID, root, len(written))
+		return 0
+
+	default:
+		fmt.Fprintf(stderr, "Error: unknown profile subcommand %q (expected list or render)\n", sub)
+		return 2
+	}
+}
+
+func cmdMigrateExport(args []string, stdout, stderr io.Writer) int {
+	reordered := reorderFlags(args, map[string]bool{
+		"dir":            true,
+		"out":            true,
+		"source-profile": true,
+		"target-profile": true,
+		"uploads-dir":    true,
+		"grex-dir":       true,
+		"pg-dump":        true,
+		"mariadb-dump":   true,
+	})
+	fs := flag.NewFlagSet("migrate-export", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	dir := fs.String("dir", ".", "Source workspace directory")
+	out := fs.String("out", "", "Output bundle directory or .tar.gz file")
+	srcProf := fs.String("source-profile", "vps-6c-12g", "Source VPS hardware profile")
+	dstProf := fs.String("target-profile", "vps-8c-16g", "Target VPS hardware profile")
+	uploadsDir := fs.String("uploads-dir", "", "Optional uploads directory override")
+	grexDir := fs.String("grex-dir", "", "Optional public/grex directory override")
+	pgDump := fs.String("pg-dump", "", "Optional PostgreSQL 18 SQL dump path")
+	mariadbDump := fs.String("mariadb-dump", "", "Optional MariaDB 11.8 SQL dump path")
+	asJSON := fs.Bool("json", false, "Output JSON")
+	if err := fs.Parse(reordered); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 2)
+	}
+	man, err := snapshot.MigrateExport(context.Background(), snapshot.MigrateExportOptions{
+		SourceWorkspace: *dir,
+		OutputBundle:    *out,
+		SourceProfile:   *srcProf,
+		TargetProfile:   *dstProf,
+		UploadsDir:      *uploadsDir,
+		GrexPublicDir:   *grexDir,
+		PostgresDump:    *pgDump,
+		MariaDBDump:     *mariadbDump,
+	})
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	if *asJSON {
+		writeJSON(stdout, map[string]any{"ok": true, "manifest": man})
+		return 0
+	}
+	fmt.Fprintf(stdout, "Exported migration bundle %s (%s -> %s, %d files, sha256:%s)\n", man.BundleID, man.SourceProfile, man.TargetProfile, len(man.Artifacts), man.ManifestSHA256)
+	return 0
+}
+
+func cmdMigrateImport(args []string, stdout, stderr io.Writer) int {
+	reordered := reorderFlags(args, map[string]bool{
+		"bundle":         true,
+		"dir":            true,
+		"target-profile": true,
+		"uploads-dir":    true,
+		"grex-dir":       true,
+	})
+	fs := flag.NewFlagSet("migrate-import", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	bundle := fs.String("bundle", "", "Input bundle directory or .tar.gz file")
+	dir := fs.String("dir", ".", "Target workspace directory")
+	dstProf := fs.String("target-profile", "vps-8c-16g", "Target VPS hardware profile")
+	uploadsDir := fs.String("uploads-dir", "", "Optional uploads target directory override")
+	grexDir := fs.String("grex-dir", "", "Optional public/grex target directory override")
+	verifyOnly := fs.Bool("verify-only", false, "Verify SHA-256 digests and 15 GB NVMe reserve without modifying files")
+	asJSON := fs.Bool("json", false, "Output JSON")
+	if err := fs.Parse(reordered); err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 2)
+	}
+	res, err := snapshot.MigrateImport(context.Background(), snapshot.MigrateImportOptions{
+		BundlePath:      *bundle,
+		TargetWorkspace: *dir,
+		TargetProfile:   *dstProf,
+		UploadsDir:      *uploadsDir,
+		GrexPublicDir:   *grexDir,
+		VerifyOnly:      *verifyOnly,
+	})
+	if err != nil {
+		return writeError(*asJSON, stdout, stderr, err, 1)
+	}
+	if *asJSON {
+		writeJSON(stdout, map[string]any{"ok": true, "import": res})
+		return 0
+	}
+	fmt.Fprintf(stdout, "Verified & imported migration bundle %s -> %s (%d files, ready_for_cutover=%v)\n", res.BundleID, res.TargetProfile, res.ArtifactCount, res.ReadyForCutover)
+	return 0
 }

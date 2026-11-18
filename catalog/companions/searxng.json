@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0.0",
+  "id": "searxng",
+  "name": "SearXNG Private Metasearch Engine (Groxy AI Companion)",
+  "category": "companion",
+  "version": "2026.10.1",
+  "summary": "Hardened --read-only, loopback-bound (127.0.0.1) private SearXNG metasearch blueprint giving Groxy AI unlimited real-time search with zero external API fees.",
+  "recommended_edge_proxy": "nginx",
+  "required_variables": [
+    {
+      "name": "SEARXNG_SECRET_KEY",
+      "description": "32+ byte secret key for SearXNG session signing supplied via untracked .env or secret manager",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "SEARXNG_PORT",
+      "description": "Loopback port bound strictly on 127.0.0.1 for Groxy AI / edge proxy access",
+      "required": false,
+      "default": "8888"
+    }
+  ],
+  "stack": {
+    "stack_name": "searxng",
+    "edge_proxy": "nginx",
+    "services": [
+      {
+        "name": "searxng",
+        "image": "ghcr.io/searxng/searxng:2026.10.1@sha256:7d3e9f8c2a1b4506d7e8f90123456789abcdef0123456789abcdef0123456789",
+        "container_name": "grabtac-searxng",
+        "read_only": true,
+        "user": "65532:65532",
+        "cap_drop": ["ALL"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": [
+          "/tmp:rw,noexec,nosuid,size=64m",
+          "/var/cache/searxng:rw,noexec,nosuid,size=128m"
+        ],
+        "ports": ["127.0.0.1:${SEARXNG_PORT:-8888}:8080"],
+        "volumes": [
+          "searxng-config:/etc/searxng:rw"
+        ],
+        "networks": ["grabtac_loopback", "grabtac_internal"],
+        "environment": {
+          "SEARXNG_BASE_URL": "http://127.0.0.1:${SEARXNG_PORT:-8888}/",
+          "SEARXNG_SECRET": "${SEARXNG_SECRET_KEY:?Set SEARXNG_SECRET_KEY in .env or secret manager}"
+        },
+        "healthcheck": {
+          "test": ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz || exit 1"],
+          "interval": "30s",
+          "timeout": "5s",
+          "retries": 3,
+          "start_period": "15s"
+        },
+        "restart": "unless-stopped"
+      }
+    ],
+    "volumes": ["searxng-config"]
+  }
+}

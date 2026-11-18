@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"grabtaculous/internal/compose"
 	"grabtaculous/internal/safepath"
 )
 
@@ -66,6 +67,7 @@ type CreateOptions struct {
 	Trigger          string
 	DeployID         string
 	Now              func() time.Time
+	DiskStatFn       compose.DiskStatFunc
 	DBCheckpointHook func(ctx context.Context, workspace string, dbOutDir string) (*DBCheckpoint, error)
 }
 
@@ -121,6 +123,14 @@ func Create(ctx context.Context, opts CreateOptions) (*Record, error) {
 	stateRoot, err := safepath.InitRoot(resolveStateDir(opts.StateDir, realWS))
 	if err != nil {
 		return nil, err
+	}
+	if _, diskErr := compose.CheckDiskReserve(stateRoot, 0, opts.DiskStatFn); diskErr != nil {
+		return nil, safepath.WrapError(
+			safepath.ErrSnapshotFailed,
+			diskErr.Error(),
+			"Maintain at least 15 GB free NVMe space (<= 92% used) before creating Pre-Deploy Snapshots.",
+			diskErr,
+		)
 	}
 
 	nowFn := opts.Now

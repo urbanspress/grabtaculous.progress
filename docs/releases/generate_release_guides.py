@@ -37,8 +37,73 @@ def find_browser() -> str | None:
 
 def build_html(version: str) -> str:
     v = html.escape(version)
-    tier_label = "Step 5 Production Freeze" if version == "1.0.0" else "PRE-1.0"
-    companion_pin = "&gt;= v0.1.0 (&lt; v2.0.0) (v1.0.0 Frozen)" if version == "1.0.0" else "&gt;= v0.1.0"
+    if version.startswith("1.1."):
+        tier_label = "MINOR 1.x.0 — NGINX 1.30.6, VPS Profiles & Node Migration"
+        companion_pin = "&gt;= v1.0.0 (&lt; v2.0.0) (Grabtaculous v1.1.0)"
+        v110_sections = """
+  <h2>7. What&rsquo;s New in v1.1.0: Official NGINX 1.30.6 HTTP/3, X-Accel-Redirect &amp; Backblaze B2</h2>
+  <p>Grabtaculous <code>v1.1.0</code> upgrades VPS edge networking from stock Ubuntu <code>nginx 1.24.x</code> to the official <code>nginx.org</code> <strong>NGINX 1.30.6 (Stable)</strong> repository, enabling native QUIC/HTTP/3, multi-threaded zero-copy audiobook downloads, and automatic protection against legacy Debian config traps.</p>
+  <div class="card-grid">
+    <div class="card">
+      <strong>Verified Host Bootstrapper (Zero Shell)</strong>
+      Downloads and pins official <code>nginx.org</code> PGP key <code>573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62</code> for Ubuntu 24.04 (<code>noble</code>), snapshots <code>/etc/nginx</code> first, removes legacy <code>nginx 1.24.x</code> &amp; <code>modules-enabled</code> / <code>snippets/fastcgi-php.conf</code> / <code>listen 443 ssl http2;</code>, configures <code>99-nginx-quic.conf</code> (<code>rmem_max=7500000</code>, <code>somaxconn=8192</code>), and opens UFW <code>443/tcp</code> + <code>443/udp</code> via structured <code>exec.CommandContext</code> argv calls.
+    </div>
+    <div class="card">
+      <strong>Zero-Copy Media &amp; Backblaze B2 Streaming</strong>
+      Configures <code>aio threads;</code> and two <code>internal;</code> <code>X-Accel-Redirect</code> endpoints: <code>/_protected_media/</code> for fast local NVMe streaming (<code>directio 8m;</code>) and <code>/_protected_b2/</code> to proxy 300&ndash;800 MB audiobooks directly from Backblaze B2 S3 with <code>proxy_buffering off;</code> and <code>proxy_max_temp_file_size 0;</code> (zero temp-disk bloat). Also renders an isolated <code>wordpress-fpm.conf</code> without duplicate <code>reuseport</code>.
+    </div>
+  </div>
+
+  <h2>8. Hardware-Adaptive VPS Profiles, 15 GB NVMe Guard &amp; Contabo &rarr; Bluehost Migration</h2>
+  <p>Render production Compose stacks, tuned PostgreSQL 18 <code>postgresql.conf</code>, Redis 8.2 <code>noeviction</code> limits, <code>reload-workers.sh</code> (<code>--sighup</code> &amp; <code>--recreate</code> gated on <code>/_ready === 200</code>), <code>grisp-stack.service</code>, and <code>grisp-backup.sh</code> (encrypted Backblaze B2 off-box sync). Every snapshot, rollout preflight, and migration bundle strictly enforces a <strong>&gt;= 15 GB free NVMe / &lt;= 92% usage reserve</strong> (<code>CheckDiskReserve</code>).</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Profile ID</th>
+        <th>Specs (vCPU / RAM / NVMe)</th>
+        <th>Grisp Loopback Pool</th>
+        <th>Target Role</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>vps-6c-12g</code></td><td>6 vCPU / 12 GB / 100 GB</td><td>4 workers (<code>8765&ndash;8768</code>)</td><td>Legacy Contabo Core source node</td></tr>
+      <tr><td><code>vps-8c-16g</code></td><td>8 vCPU / 16 GB / 200 GB</td><td>6 workers (<code>8765&ndash;8770</code>)</td><td>Primary Bluehost Ashburn production node</td></tr>
+      <tr><td><code>vps-8c-24g</code></td><td>8 vCPU / 24 GB / 300 GB</td><td>8 workers (<code>8765&ndash;8772</code>)</td><td>Scale-Up Tier 1 high-memory NVMe node</td></tr>
+      <tr><td><code>vps-8c-32g</code></td><td>8 vCPU / 32 GB / 400 GB</td><td>8 workers (<code>8765&ndash;8772</code>)</td><td>Scale-Up Tier 2 high-concurrency cluster node</td></tr>
+      <tr><td><code>vps-16c-64g</code></td><td>16 vCPU / 64 GB / 800 GB</td><td>8 workers (<code>8765&ndash;8772</code>)</td><td>Flagship enterprise multi-storefront NVMe node</td></tr>
+    </tbody>
+  </table>
+
+  <pre># Inspect and render NGINX 1.30.6 edge configs &amp; Bluehost vps-8c-16g stack
+grabtaculous edge bootstrap-plan --codename noble --json
+grabtaculous edge render --profile vps-8c-16g --domain bookstore.example.com --wp-domain blog.bookstore.example.com --out-dir ./edge-out
+grabtaculous profile render vps-8c-16g --domain bookstore.example.com --out-dir ./vps-stack
+
+# Export &amp; verify/import Contabo -&gt; Bluehost migration bundle (zero .env/.key secrets included)
+grabtaculous migrate-export --dir ./contabo-ws --out ./contabo-to-bluehost.tar.gz --source-profile vps-6c-12g --target-profile vps-8c-16g --pg-dump ./pg18.sql
+grabtaculous migrate-import --bundle ./contabo-to-bluehost.tar.gz --dir ./bluehost-ws --target-profile vps-8c-16g</pre>
+  <p>Full step-by-step cutover instructions are maintained in <code>vps-starter-kit.md</code> (mirrored at <code>docs/vps-starter-kit.md</code>).</p>
+"""
+        extra_catalog_rows = """
+      <tr><td><code>searxng</code></td><td>Groxy AI Companion</td><td>Hardened <code>--read-only</code> loopback (<code>127.0.0.1</code>) SearXNG private metasearch engine (<code>2026.10.1</code>)</td></tr>
+      <tr><td><code>wordpress-fpm</code></td><td>Companion CMS</td><td>Isolated <code>--read-only</code> WordPress <code>6.8.1</code> PHP-FPM + private MariaDB 11.8 behind NGINX 1.30.6</td></tr>"""
+        grabman_ref = "grabman v1.0.0"
+        gashboard_ref = "Gashboard v1.0.0 / Groxy Desk v1.0.1"
+    elif version == "1.0.0":
+        tier_label = "Step 5 Production Freeze"
+        companion_pin = "&gt;= v0.1.0 (&lt; v2.0.0) (v1.0.0 Frozen)"
+        v110_sections = ""
+        extra_catalog_rows = ""
+        grabman_ref = "grabman v1.0.0"
+        gashboard_ref = f"Gashboard v{v}"
+    else:
+        tier_label = "PRE-1.0"
+        companion_pin = "&gt;= v0.1.0"
+        v110_sections = ""
+        extra_catalog_rows = ""
+        grabman_ref = f"grabman v{v}"
+        gashboard_ref = f"Gashboard v{v}"
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -212,7 +277,7 @@ def build_html(version: str) -> str:
   </div>
 
   <h2>1. What Grabtaculous Does (In Plain English)</h2>
-  <p>Once <code>grabman v{v}</code> scaffolds your site or stack, <strong>Grabtaculous</strong> is the server-side engine that actually launches, protects, updates, and rescues it on your VPS—without opening public admin ports that hackers scan for.</p>
+  <p>Once <code>{grabman_ref}</code> scaffolds your site or stack, <strong>Grabtaculous</strong> is the server-side engine that actually launches, protects, updates, and rescues it on your VPS—without opening public admin ports that hackers scan for.</p>
 
   <div class="card-grid">
     <div class="card">
@@ -307,7 +372,7 @@ grabtaculous daemon --listen 127.0.0.1:9440 --state-dir ./.grabtaculous</pre>
       <tr><td><code>grablab-full-stack</code></td><td>Enterprise Stack</td><td>GrabLab CMS bundle paired with private loopback PostgreSQL 18</td></tr>
       <tr><td><code>grab-grisp-app</code></td><td>Core App</td><td>Standalone hardened GRAB v1.1.0 <code>Grisp</code> worker application</td></tr>
       <tr><td><code>postgres-18</code> / <code>mariadb-11-8</code> / <code>redis-standalone</code></td><td>Private Data Stores</td><td>Loopback-only (<code>127.0.0.1</code>) relational DB and rate-limit/session cache</td></tr>
-      <tr><td><code>analytics</code> / <code>object-storage</code> / <code>automation</code> / <code>webmail</code></td><td>Self-Hosted Companions</td><td>Plausible privacy analytics, Garage S3 media bucket, n8n workflows, SnappyMail</td></tr>
+      <tr><td><code>analytics</code> / <code>object-storage</code> / <code>automation</code> / <code>webmail</code></td><td>Self-Hosted Companions</td><td>Plausible privacy analytics, Garage S3 media bucket, n8n workflows, SnappyMail</td></tr>{extra_catalog_rows}
     </tbody>
   </table>
 
@@ -341,9 +406,9 @@ grabtaculous daemon --listen 127.0.0.1:9440 --state-dir ./.grabtaculous</pre>
       <tr><td>Scaffolder, Orchestrator &amp; VPS Panel</td><td><code>urbanspress/grabman</code>, <code>grabtaculous</code>, <code>gashboard</code></td><td><code>{companion_pin}</code></td></tr>
     </tbody>
   </table>
-
+{v110_sections}
   <div class="footer">
-    <strong>Grabtaculous v{v}</strong> · MIT License · Part of the Post-1.0 GRAB Ecosystem (<code>urbanspress/grabtaculous.progress</code> &amp; <code>urbanspress/grabtaculous.stable</code>). Controlled cleanly over encrypted SSH by <strong>Gashboard v{v}</strong>.
+    <strong>Grabtaculous v{v}</strong> · MIT License · Part of the Post-1.0 GRAB Ecosystem (<code>urbanspress/grabtaculous.progress</code> &amp; <code>urbanspress/grabtaculous.stable</code>). Controlled cleanly over encrypted SSH by <strong>{gashboard_ref}</strong>.
   </div>
 
 </body>

@@ -44,10 +44,14 @@ Completed Scope:
 
 ---
 
-## `v1.1.0` — Curated 1-Click SearXNG Private Metasearch Blueprint
+## `v1.1.0` — NGINX `1.30.6` (HTTP/3 + `X-Accel-Redirect` + Backblaze B2), Multi-Worker Hardware Profiles, 15 GB NVMe Reserve Guard, Node Migration Engine, `vps-starter-kit.md` & Curated SearXNG / WordPress PHP-FPM Blueprints
 
-**Status:** Planned — Backwards-Compatible Minor Feature
+**Status:** Complete ([`specifications/GRABTACULOUS-SPEC-110.md`](../specifications/GRABTACULOUS-SPEC-110.md) — Released `v1.1.0`, Guide: [`Grabtaculous-v1.1.0-Guide.pdf`](releases/pdf/Grabtaculous-v1.1.0-Guide.pdf), Playbook: [`vps-starter-kit.md`](../vps-starter-kit.md))
 
-Planned Scope:
-- Adds a hardened `--read-only`, loopback-bound (`127.0.0.1`), digest-pinned **SearXNG** container template to `catalog/` so **Groxy AI** gets unlimited private real-time search results with zero external API fees.
+Completed Scope:
+- **Official `nginx.org` NGINX `1.30.6` (Stable) Host Bootstrapper & Generator (`internal/edge/`):** Zero-shell structured-argv Ubuntu 24.04 (`noble`) upgrade plan stripping legacy `nginx 1.24.x` / `modules-enabled` / `snippets/fastcgi-php.conf` / `listen 443 ssl http2`, pinning PGP key `573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62`, applying `/etc/sysctl.d/99-nginx-quic.conf`, UFW `443/tcp` + `443/udp`, and generating tuned `nginx.conf`, `grisp.conf` (`HTTP/3`, `aio threads;`, `/_protected_media/` + `/_protected_b2/` `X-Accel-Redirect`), and isolated `wordpress-fpm.conf`.
+- **Hardware-Adaptive VPS Profiles, 15 GB NVMe Reserve Guard & Backblaze B2 Offload (`internal/compose/`):** Profiles `vps-6c-12g` (Contabo Core), `vps-8c-16g` (Bluehost Ashburn), `vps-8c-24g`, `vps-8c-32g`, and `vps-16c-64g`, `grisp-backup.sh` (Backblaze B2 encrypted off-box sync), `reload-workers.sh` (`--sighup` / `--recreate`), and mandatory `>= 15 GB` free NVMe / `<= 92%` usage checks.
+- **Contabo -> Bluehost Node Migration Engine (`internal/snapshot/migrate.go`):** `grabtaculous migrate-export` & `migrate-import` with per-file SHA-256 verification and secret exclusion.
+- **Curated Marketplace Blueprints (`catalog/`):** Hardened `--read-only`, loopback-bound (`127.0.0.1`), digest-pinned **SearXNG** private metasearch (`catalog/companions/searxng.json`) and isolated **WordPress PHP-FPM + MariaDB 11.8** (`catalog/companions/wordpress-fpm.json`).
+- **Master Playbook:** [`vps-starter-kit.md`](../vps-starter-kit.md) & [`docs/vps-starter-kit.md`](vps-starter-kit.md).
 

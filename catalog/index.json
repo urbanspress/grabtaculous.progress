@@ -91,6 +91,24 @@
       "summary": "Hardened self-hosted webmail client running --read-only under UID 65532 behind edge HTTPS on 127.0.0.1 loopback.",
       "manifest_path": "companions/webmail.json",
       "sha256": "6b9b95bfe90533f4b571f29cc2287fb8df0f3d1a15d060f10eb78de93e8cfe86"
+    },
+    {
+      "id": "searxng",
+      "name": "SearXNG Private Metasearch Engine (Groxy AI Companion)",
+      "category": "companion",
+      "version": "2026.10.1",
+      "summary": "Hardened --read-only, loopback-bound (127.0.0.1) private SearXNG metasearch blueprint giving Groxy AI unlimited real-time search with zero external API fees.",
+      "manifest_path": "companions/searxng.json",
+      "sha256": "ef8a99408b220e438d3f4065a9fa3e96c0529368e088a7a733bc4b0bc19ff39d"
+    },
+    {
+      "id": "wordpress-fpm",
+      "name": "Isolated WordPress PHP-FPM + MariaDB 11.8 Companion",
+      "category": "companion",
+      "version": "6.8.1",
+      "summary": "Hardened --read-only WordPress PHP-FPM companion isolated on 127.0.0.1:9000 behind NGINX 1.30.6 HTTP/3 and private MariaDB 11.8.",
+      "manifest_path": "companions/wordpress-fpm.json",
+      "sha256": "e6524618a17a7b51ce5026d5f19b49eb9ba4d22900e535274c200ba41c1ac8bf"
     }
   ]
 }

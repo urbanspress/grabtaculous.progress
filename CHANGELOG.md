@@ -2,6 +2,19 @@
 
 All notable changes to **Grabtaculous** (Step 5 Multi-Server Supervisor, `--read-only` Container Orchestrator, Curated 1-Click Marketplace & Zero-Downtime Rollout Engine) are documented in this file.
 
+## [v1.1.0] — 2026-11-18
+
+### NGINX `1.30.6` (HTTP/3 + `X-Accel-Redirect` + Backblaze B2), Multi-Worker Hardware Profiles, Node Migration Engine & SearXNG Blueprint (`GRABTACULOUS-SPEC-110`)
+- **Official `nginx.org` NGINX `1.30.6` Bootstrapper & Edge Generator (`internal/edge/`):**
+  - Added deterministic structured-argv (`exec.CommandContext`) Ubuntu 24.04 LTS bootstrapper removing stock `nginx 1.24.x` (`nginx`, `nginx-common`, `nginx-core`, `libnginx-mod-*`), stripping legacy `/etc/nginx/modules-enabled/*.conf` / `snippets/fastcgi-php.conf` / `listen 443 ssl http2;`, verifying pinned `nginx.org` PGP fingerprint `573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62`, configuring `/etc/sysctl.d/99-nginx-quic.conf` (`rmem_max=7500000`, `wmem_max=7500000`, `somaxconn=8192`) and UFW (`443/tcp`, `443/udp`).
+  - Upgraded `nginx.conf`, `grisp.conf`, `wordpress-fpm.conf`, and `internal/container/edge.go` to NGINX `1.30.6` HTTP/3 (`quic reuseport` once on primary `grisp.conf`, `http2 on;`, `quic_retry on;`, `quic_gso on;`, `Alt-Svc 'h3=":443"; ma=86400'`), `aio threads;`, selective text/JSON-LD Gzip, `429` flood shields, `/_protected_media/` local NVMe `X-Accel-Redirect` (`directio 8m;`), `/_protected_b2/` Backblaze B2 S3 `X-Accel-Redirect` (`proxy_buffering off;`), raw-byte webhooks (`/api/webhooks/` & `/api/commerce/webhooks/`), WebSocket `Origin` passthrough, and isolated `wordpress-fpm.conf` (`fastcgi_params`).
+- **Hardware-Adaptive VPS Profiles & 15 GB NVMe Reserve Guard (`internal/compose/`):**
+  - Added `vps-6c-12g` (Contabo Core), `vps-8c-16g` (Bluehost Ashburn), `vps-8c-24g`, `vps-8c-32g`, and `vps-16c-64g` profiles, tuned `postgresql.conf`, `reload-workers.sh` (`--sighup` & `--recreate`), `grisp-stack.service`, and `grisp-backup.sh` (Backblaze B2 encrypted off-box sync), backed by a strict `>= 15 GB` free NVMe / `<= 92%` usage guard enforced across snapshots, rollout preflight, and migrations.
+- **Contabo -> Bluehost Node Migration Engine (`internal/snapshot/migrate.go`):**
+  - Added `grabtaculous migrate-export` and `grabtaculous migrate-import` with SHA-256 manifest verification, `.tar.gz` and directory bundle support, `.env`/`.key` exclusion, and 15 GB NVMe reserve enforcement.
+- **Curated Marketplace & Master Playbook:**
+  - Added hardened `--read-only` blueprints `searxng` and `wordpress-fpm` to `catalog/` and authored [`vps-starter-kit.md`](vps-starter-kit.md) & [`docs/vps-starter-kit.md`](docs/vps-starter-kit.md).
+
 ## [v1.0.0] — 2026-11-15
 
 ### Production Stability Freeze (`GRABTACULOUS-SPEC-100`)

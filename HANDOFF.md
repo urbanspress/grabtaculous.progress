@@ -1,12 +1,28 @@
 # HANDOFF.md — Grabtaculous
 
-- **Current Owner:** Project Owner / Google Antigravity (`grabtaculous v1.0.0` Complete — Step 5 Production Stability Freeze Synchronized on `origin` & `stable`)
+- **Current Owner:** Google Antigravity (`grabtaculous v1.1.0` Complete — Synchronized across `origin` and `stable`)
 - **Current Milestone State:**
   - **`v0.1.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md))
   - **`v1.0.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-100.md`](specifications/GRABTACULOUS-SPEC-100.md), [`docs/ROADMAP.md`](docs/ROADMAP.md))
-  - **`v1.1.0 — Curated 1-Click SearXNG Private Metasearch Blueprint` — `Status: Planned — Backwards-Compatible Minor Feature`** (adds a hardened `--read-only`, loopback-bound (`127.0.0.1`), digest-pinned **SearXNG** container template to `catalog/` so **Groxy AI** gets unlimited private real-time search results with zero external API fees)
-- **Pending `v1.0.0` Tasks:** None (`0` pending items).
-- **Release Readiness:** Step 5 Layer 2 (`Grabtaculous v1.0.0`) is frozen for **Gashboard v1.0.0** SSH tunnels and **Step 6 (`Groxy Desk`)** production workloads.
+  - **`v1.1.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-110.md`](specifications/GRABTACULOUS-SPEC-110.md), [`vps-starter-kit.md`](vps-starter-kit.md)): Official `nginx.org` NGINX `1.30.6` (HTTP/3, `aio threads;`, `/_protected_media/` + `/_protected_b2/` `X-Accel-Redirect`, isolated `wordpress-fpm.conf`), hardware profiles (`vps-6c-12g` through `vps-16c-64g`), `>= 15 GB` NVMe reserve guard, Contabo -> Bluehost migration engine (`migrate-export` / `migrate-import`), and curated `searxng` & `wordpress-fpm` blueprints.
+- **Pending `v1.1.0` Tasks:** None (`100%` Complete).
+- **Release Readiness:** `Grabtaculous v1.1.0` (`MINOR 1.x.0`) is `100%` backwards compatible with `v1.0.0`, **Gashboard v1.0.0**, and **Groxy Desk v1.0.1**.
+
+---
+
+## `v1.1.0` Verification & Release Summary
+- **Pure Go Stdlib / Zero External Dependencies (`CGO_ENABLED=0`):**
+  - `go build ./...`: `PASS` (clean)
+  - `go vet ./...`: `PASS` (clean)
+  - `go test -count=1 ./...`: `PASS` (`100%` pass across NGINX `1.30.6` bootstrapper & HTTP/3 + `X-Accel-Redirect` generator, all 5 VPS hardware profiles `vps-6c-12g`..`vps-16c-64g`, `>= 15 GB` NVMe reserve guard, `migrate-export` / `migrate-import` tamper & secret exclusion, curated 12-blueprint catalog including `searxng` and `wordpress-fpm`, stealth loopback daemon, `/_ready` rollouts, and snapshot rollback)
+  - `go mod verify`: `all modules verified`
+  - `govulncheck ./...`: `No vulnerabilities found.`
+- **Deliverables & Static Release Assets (`dist/`):**
+  - `grabtaculous-windows-amd64.exe` (`windows/amd64`, `CGO_ENABLED=0`)
+  - `grabtaculous-linux-amd64` (`linux/amd64`, `CGO_ENABLED=0`)
+  - `grabtaculous-linux-arm64` (`linux/arm64`, `CGO_ENABLED=0`)
+  - `Grabtaculous-v1.1.0-Guide.pdf` (`docs/releases/pdf/Grabtaculous-v1.1.0-Guide.pdf`)
+  - `grabtaculous-v1.1.0-bundle.zip` + `SHA256SUMS.txt`
 
 ---
 

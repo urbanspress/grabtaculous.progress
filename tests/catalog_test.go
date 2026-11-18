@@ -20,8 +20,8 @@ func TestCuratedMarketplaceBlueprintsAndHardenedComposeRendering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("catalog.List failed: %v", err)
 	}
-	if len(entries) != 10 {
-		t.Fatalf("expected 10 curated blueprints, got %d", len(entries))
+	if len(entries) != 12 {
+		t.Fatalf("expected 12 curated blueprints, got %d", len(entries))
 	}
 
 	requiredIDs := map[string]bool{
@@ -35,6 +35,8 @@ func TestCuratedMarketplaceBlueprintsAndHardenedComposeRendering(t *testing.T) {
 		"object-storage":      false,
 		"automation":          false,
 		"webmail":             false,
+		"searxng":             false,
+		"wordpress-fpm":       false,
 	}
 
 	for _, entry := range entries {
