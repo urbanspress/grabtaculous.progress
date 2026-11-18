@@ -132,6 +132,7 @@ http {
     sendfile on;
     sendfile_max_chunk 2m;
     aio threads;
+    directio 8m;
     tcp_nopush on;
     tcp_nodelay on;
     keepalive_timeout 65;
@@ -177,7 +178,9 @@ http {
 }
 ```
 
-### 3.2 `/etc/nginx/sites-available/grisp.conf` (`HTTP/3` + `X-Accel-Redirect` Local NVMe & Backblaze B2)
+### 3.2 `/etc/nginx/sites-available/grisp.conf` (`HTTP/3` + Domain-Free Default Welcome + `X-Accel-Redirect`)
+By default (`grabtaculous edge render` without `--domain`), `grisp.conf` never hardcodes a domain name—it emits a domain-free `default_server` (`server_name _;`) serving the Next.js-inspired, zero-`<div>`, **Grex JS v1.0.0** animated **Grisp Default Welcome & Readiness Page** from `/var/www/grisp-welcome/` while keeping all Grisp worker pool routes (`127.0.0.1:8765–8770`), `X-Accel-Redirect`, WebSocket, and loopback `/_health` + `/_ready` endpoints armed. Passing `--domain <domain>` switches to `server_name <domain> www.<domain>;` with Let's Encrypt TLS certificates.
+
 ```nginx
 upstream grisp_backend {
     least_conn;
@@ -193,24 +196,41 @@ upstream grisp_backend {
 }
 
 server {
-    listen 80;
-    listen [::]:80;
-    server_name bookstore.example.com;
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    root /var/www/grisp-welcome;
+    index index.html;
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
-    location / {
-        return 301 https://$host$request_uri;
+
+    location = / {
+        try_files /index.html =404;
+    }
+
+    location ^~ /grex/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+
+    location ~ ^/_(health|ready)$ {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+        proxy_pass http://grisp_backend;
     }
 }
 
+# Registered-domain mode (--domain bookstore.example.com) routes `server_name bookstore.example.com www.bookstore.example.com;`
 server {
     listen 443 quic reuseport;
     listen [::]:443 quic reuseport;
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name bookstore.example.com;
+    server_name bookstore.example.com www.bookstore.example.com;
 
     ssl_certificate /etc/letsencrypt/live/bookstore.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/bookstore.example.com/privkey.pem;
@@ -366,6 +386,8 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
         proxy_next_upstream off;
     }
 
@@ -446,7 +468,7 @@ Generate the exact profile-tuned file anytime with:
 ```bash
 grabtaculous profile render vps-8c-16g --domain bookstore.example.com --out-dir /opt/grisp-stack
 ```
-Every service runs with `read_only: true`, `cap_drop: ["ALL"]`, `security_opt: ["no-new-privileges:true"]`, `user: "65532:65532"`, `tmpfs` with `noexec,nosuid`, pinned `@sha256:...` digests, `--trusted-proxy ${GRABLAB_TRUSTED_PROXY:-127.0.0.1}`, `GOMEMLIMIT="650MiB"`, Redis `8.2` (`--maxmemory 768mb --maxmemory-policy noeviction`), and `127.0.0.1` loopback port bindings only.
+Every service runs with `read_only: true`, `cap_drop: ["ALL"]`, `security_opt: ["no-new-privileges:true"]`, `user: "65532:65532"`, `stop_grace_period: 35s` on Grisp workers, `tmpfs` with `noexec,nosuid`, pinned `@sha256:...` digests, `--trusted-proxy ${GRABLAB_TRUSTED_PROXY:-127.0.0.1}`, `GOMEMLIMIT="650MiB"`, Redis `8.2` (`--maxmemory 768mb --maxmemory-policy noeviction`), and `127.0.0.1` loopback port bindings only.
 
 ### 3.5 `deploy/postgres/postgresql.conf` (`vps-8c-16g`)
 ```ini

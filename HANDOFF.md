@@ -4,7 +4,7 @@
 - **Current Milestone State:**
   - **`v0.1.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-001.md`](specifications/GRABTACULOUS-SPEC-001.md))
   - **`v1.0.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-100.md`](specifications/GRABTACULOUS-SPEC-100.md), [`docs/ROADMAP.md`](docs/ROADMAP.md))
-  - **`v1.1.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-110.md`](specifications/GRABTACULOUS-SPEC-110.md), [`vps-starter-kit.md`](vps-starter-kit.md)): Official `nginx.org` NGINX `1.30.6` (HTTP/3, `aio threads;`, `/_protected_media/` + `/_protected_b2/` `X-Accel-Redirect`, isolated `wordpress-fpm.conf`), hardware profiles (`vps-6c-12g` through `vps-16c-64g`), `>= 15 GB` NVMe reserve guard, Contabo -> Bluehost migration engine (`migrate-export` / `migrate-import`), and curated `searxng` & `wordpress-fpm` blueprints.
+  - **`v1.1.0` — `Complete`** ([`specifications/GRABTACULOUS-SPEC-110.md`](specifications/GRABTACULOUS-SPEC-110.md), [`vps-starter-kit.md`](vps-starter-kit.md)): Official `nginx.org` NGINX `1.30.6` (HTTP/3, `aio threads;`, `/_protected_media/` + `/_protected_b2/` `X-Accel-Redirect`, domain-free `default_server` `grisp.conf` with Grex JS `v1.0.0` animated Grisp Default Welcome & Readiness Page, isolated `wordpress-fpm.conf`), hardware profiles (`vps-6c-12g` through `vps-16c-64g`), `>= 15 GB` NVMe reserve guard, Contabo -> Bluehost migration engine (`migrate-export` / `migrate-import`), and curated `searxng` & `wordpress-fpm` blueprints.
 - **Pending `v1.1.0` Tasks:** None (`100%` Complete).
 - **Release Readiness:** `Grabtaculous v1.1.0` (`MINOR 1.x.0`) is `100%` backwards compatible with `v1.0.0`, **Gashboard v1.0.0**, and **Groxy Desk v1.0.1**.
 

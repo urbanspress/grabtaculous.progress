@@ -774,7 +774,7 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		fs := flag.NewFlagSet("edge render", flag.ContinueOnError)
 		fs.SetOutput(io.Discard)
 		profileID := fs.String("profile", "vps-8c-16g", "Hardware profile ID")
-		domain := fs.String("domain", "bookstore.example.com", "Primary Grisp domain")
+		domain := fs.String("domain", "_", "Primary Grisp domain (defaults to '_' domain-free default_server welcome mode)")
 		wpDomain := fs.String("wp-domain", "", "Optional WordPress companion domain")
 		outDir := fs.String("out-dir", ".", "Target output directory")
 		uploadDir := fs.String("upload-dir", "/var/lib/grisp/uploads/", "Local NVMe upload directory for X-Accel-Redirect")
@@ -801,7 +801,7 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		if err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 1)
 		}
-		wpConf, err := edge.RenderWordPressFPMConf(opts)
+		welcomeHTML, err := edge.RenderGrispWelcomeHTML(opts)
 		if err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 1)
 		}
@@ -814,10 +814,33 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		written := []string{
 			"etc/nginx/nginx.conf",
 			"etc/nginx/sites-available/grisp.conf",
-			"etc/nginx/sites-available/wordpress-fpm.conf",
 			"etc/sysctl.d/99-nginx-quic.conf",
+			"var/www/grisp-welcome/index.html",
+			"var/www/grisp-welcome/grex/welcome.css",
+			"var/www/grisp-welcome/grex/welcome-grid.js",
+			"var/www/grisp-welcome/grex/grex.js",
+			"var/www/grisp-welcome/grex/tokens.css",
+			"var/www/grisp-welcome/grex/grex.elements.json",
 		}
-		contents := [][]byte{mainConf, grispConf, wpConf, sysctlConf}
+		contents := [][]byte{
+			mainConf,
+			grispConf,
+			sysctlConf,
+			welcomeHTML,
+			edge.RenderGrispWelcomeCSS(),
+			edge.RenderGrispWelcomeGridJS(),
+			edge.RenderGrexJS(),
+			edge.RenderGrexTokensCSS(),
+			edge.RenderGrexElementsJSON(),
+		}
+		if strings.TrimSpace(opts.WPDomain) != "" || opts.Domain != "_" {
+			wpConf, err := edge.RenderWordPressFPMConf(opts)
+			if err != nil {
+				return writeError(*asJSON, stdout, stderr, err, 1)
+			}
+			written = append(written, "etc/nginx/sites-available/wordpress-fpm.conf")
+			contents = append(contents, wpConf)
+		}
 		for i, rel := range written {
 			if err := safepath.WriteFileAtomic(root, rel, contents[i], 0o644, safepath.ResolveOptions{}); err != nil {
 				return writeError(*asJSON, stdout, stderr, err, 1)

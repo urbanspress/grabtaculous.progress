@@ -119,6 +119,7 @@ func TestNginx1306ProductionTemplatesXAccelAndWordPressParity(t *testing.T) {
 		"worker_rlimit_nofile 65535;",
 		"worker_connections 8192;",
 		"aio threads;",
+		"directio 8m;",
 		"sendfile_max_chunk 2m;",
 		"gzip_comp_level 5;",
 		"application/ld+json",
@@ -174,6 +175,8 @@ func TestNginx1306ProductionTemplatesXAccelAndWordPressParity(t *testing.T) {
 		"limit_rate 12m;",
 		"location ^~ /ws/",
 		"proxy_set_header Origin $http_origin;",
+		"proxy_read_timeout 60s;",
+		"proxy_send_timeout 60s;",
 		"location ~ ^/_(health|ready)$",
 	} {
 		if !strings.Contains(grispTxt, required) {
@@ -220,6 +223,9 @@ func TestHardwareProfilesNVMeReserveGuardAndGrabmanDoctor(t *testing.T) {
 			yamlBytes, err := compose.RenderProfileCompose(p.ID, "bookstore.example.com")
 			if err != nil {
 				t.Fatalf("RenderProfileCompose(%s) failed: %v", p.ID, err)
+			}
+			if !strings.Contains(string(yamlBytes), "stop_grace_period: 35s") {
+				t.Fatalf("profile %s missing stop_grace_period: 35s", p.ID)
 			}
 			if err := container.AuditComposeYAML("deploy/docker-compose.yml", string(yamlBytes), container.AuditOptions{RequireDigest: true}); err != nil {
 				t.Fatalf("profile %s failed GRABTAC-E401 audit: %v", p.ID, err)
@@ -425,8 +431,94 @@ func TestContaboToBluehostMigrationExportImportAndStarterKit(t *testing.T) {
 	if code != 0 || json.Unmarshal([]byte(out), &edgeResp) != nil || edgeResp["ok"] != true {
 		t.Fatalf("edge render CLI failed (code=%d): %s", code, out)
 	}
+	namedGrisp, _ := os.ReadFile(filepath.Join(cliOutDir, "etc", "nginx", "sites-available", "grisp.conf"))
+	if !strings.Contains(string(namedGrisp), "server_name books.example.com www.books.example.com;") {
+		t.Fatalf("expected domain + www server_name in named grisp.conf:\n%s", string(namedGrisp))
+	}
 	out, code = runGrabtacCLI(t, bin, "profile", "render", "vps-8c-16g", "--domain", "books.example.com", "--out-dir", cliOutDir, "--json")
 	if code != 0 || !strings.Contains(out, "docker-compose.yml") {
 		t.Fatalf("profile render CLI failed (code=%d): %s", code, out)
+	}
+}
+
+func TestDomainFreeDefaultGrispConfAndGrexWelcomePage(t *testing.T) {
+	opts := edge.DefaultNginxConfigOptions("")
+	if opts.Domain != "_" {
+		t.Fatalf("expected default domain-free mode '_', got %q", opts.Domain)
+	}
+	grispBytes, err := edge.RenderGrispSiteConf(opts)
+	if err != nil {
+		t.Fatalf("RenderGrispSiteConf default mode failed: %v", err)
+	}
+	grisp := string(grispBytes)
+	for _, bad := range []string{"allenmiles.com", "bookstore.example.com", "/etc/letsencrypt/live/_/"} {
+		if strings.Contains(grisp, bad) {
+			t.Fatalf("domain-free grisp.conf leaked hardcoded domain/path %q:\n%s", bad, grisp)
+		}
+	}
+	for _, want := range []string{
+		"listen 80 default_server;",
+		"listen [::]:80 default_server;",
+		"listen 443 quic default_server reuseport;",
+		"listen 443 ssl default_server;",
+		"server_name _;",
+		"root /var/www/grisp-welcome;",
+		"ssl_certificate /etc/nginx/ssl/grisp-default.crt;",
+		"ssl_certificate_key /etc/nginx/ssl/grisp-default.key;",
+		"location ^~ /grex/",
+		"location ~ ^/_(health|ready)$",
+		"location ^~ /_protected_media/",
+		"location ~ ^/_protected_b2/",
+	} {
+		if !strings.Contains(grisp, want) {
+			t.Fatalf("domain-free grisp.conf missing %q:\n%s", want, grisp)
+		}
+	}
+
+	welcomeBytes, err := edge.RenderGrispWelcomeHTML(opts)
+	if err != nil {
+		t.Fatalf("RenderGrispWelcomeHTML failed: %v", err)
+	}
+	welcomeHTML := string(welcomeBytes)
+	if strings.Contains(strings.ToLower(welcomeHTML), "<div") || strings.Contains(strings.ToLower(welcomeHTML), "gsap") {
+		t.Fatalf("Grisp welcome HTML must contain zero <div> tags and zero GSAP bloat:\n%s", welcomeHTML)
+	}
+	for _, want := range []string{
+		"<canvas id=\"grex-welcome-canvas\"",
+		"/grex/tokens.css",
+		"/grex/welcome.css",
+		"/grex/welcome-grid.js",
+		"Welcome to Grisp.",
+		"6 Loopback Workers Configured",
+		"127.0.0.1:8765-8770",
+		"grabman init",
+		"grab serve",
+	} {
+		if !strings.Contains(welcomeHTML, want) {
+			t.Fatalf("Grisp welcome HTML missing %q", want)
+		}
+	}
+
+	// Verify `grabtaculous edge render` (without --domain) produces domain-free grisp.conf & Grex welcome assets
+	bin := buildGrabtaculousCLI(t)
+	defaultOut := filepath.Join(t.TempDir(), "default-edge")
+	out, code := runGrabtacCLI(t, bin, "edge", "render", "--profile", "vps-8c-16g", "--out-dir", defaultOut, "--json")
+	if code != 0 {
+		t.Fatalf("default edge render CLI failed (code=%d): %s", code, out)
+	}
+	for _, rel := range []string{
+		"etc/nginx/sites-available/grisp.conf",
+		"var/www/grisp-welcome/index.html",
+		"var/www/grisp-welcome/grex/welcome.css",
+		"var/www/grisp-welcome/grex/welcome-grid.js",
+		"var/www/grisp-welcome/grex/grex.js",
+		"var/www/grisp-welcome/grex/tokens.css",
+	} {
+		if st, err := os.Stat(filepath.Join(defaultOut, filepath.FromSlash(rel))); err != nil || st.Size() == 0 {
+			t.Fatalf("expected non-empty rendered edge file %s (err=%v)", rel, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(defaultOut, "etc", "nginx", "sites-available", "wordpress-fpm.conf")); err == nil {
+		t.Fatalf("did not expect wordpress-fpm.conf when no domain or --wp-domain was supplied")
 	}
 }

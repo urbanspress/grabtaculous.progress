@@ -225,6 +225,7 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 		b.WriteString("    tmpfs:\n")
 		b.WriteString("      - /tmp:rw,noexec,nosuid,size=64m\n")
 		fmt.Fprintf(&b, "    mem_limit: %s\n", p.GrispMemoryLimit)
+		b.WriteString("    stop_grace_period: 35s\n")
 		b.WriteString("    ports:\n")
 		fmt.Fprintf(&b, "      - \"127.0.0.1:%d:8080\"\n", port)
 		b.WriteString("    working_dir: /app\n")

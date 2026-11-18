@@ -50,7 +50,7 @@ def build_html(version: str) -> str:
     </div>
     <div class="card">
       <strong>Zero-Copy Media &amp; Backblaze B2 Streaming</strong>
-      Configures <code>aio threads;</code> and two <code>internal;</code> <code>X-Accel-Redirect</code> endpoints: <code>/_protected_media/</code> for fast local NVMe streaming (<code>directio 8m;</code>) and <code>/_protected_b2/</code> to proxy 300&ndash;800 MB audiobooks directly from Backblaze B2 S3 with <code>proxy_buffering off;</code> and <code>proxy_max_temp_file_size 0;</code> (zero temp-disk bloat). Also renders an isolated <code>wordpress-fpm.conf</code> without duplicate <code>reuseport</code>.
+      Configures <code>aio threads;</code> and two <code>internal;</code> <code>X-Accel-Redirect</code> endpoints: <code>/_protected_media/</code> for fast local NVMe streaming (<code>directio 8m;</code>) and <code>/_protected_b2/</code> to proxy 300&ndash;800 MB audiobooks directly from Backblaze B2 S3 with <code>proxy_buffering off;</code> and <code>proxy_max_temp_file_size 0;</code> (zero temp-disk bloat). Default <code>grisp.conf</code> renders as domain-free <code>default_server</code> (<code>server_name _;</code>) serving a zero-<code>&lt;div&gt;</code> <strong>Grex JS v1.0.0</strong> animated Grisp Default Welcome &amp; Readiness Page until sites register explicit domains.
     </div>
   </div>
 
@@ -75,8 +75,9 @@ def build_html(version: str) -> str:
     </tbody>
   </table>
 
-  <pre># Inspect and render NGINX 1.30.6 edge configs &amp; Bluehost vps-8c-16g stack
+  <pre># Render domain-free default grisp.conf &amp; Grex welcome page, or bind named domains
 grabtaculous edge bootstrap-plan --codename noble --json
+grabtaculous edge render --profile vps-8c-16g --out-dir ./edge-out
 grabtaculous edge render --profile vps-8c-16g --domain bookstore.example.com --wp-domain blog.bookstore.example.com --out-dir ./edge-out
 grabtaculous profile render vps-8c-16g --domain bookstore.example.com --out-dir ./vps-stack
 
