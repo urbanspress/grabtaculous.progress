@@ -3,6 +3,7 @@
 **Target Architecture:** Official `nginx.org` NGINX `1.30.6` (Stable, HTTP/3 QUIC, `aio threads;`, `X-Accel-Redirect`) + Hardened `--read-only` Multi-Worker **GRAB `v1.1.0` (`Grisp`) + GrabLab CMS + Grex Theme Builder `v1.0.0` + Groxy AI `v1.8.0` + PostgreSQL 18 + Redis 8.2** + Optional Isolated **WordPress (`php-fpm` + `MariaDB 11.8`)** + **Backblaze B2** Offload & **>= 15 GB NVMe Safety Reserve**
 
 > **Primary Production Target:** **Bluehost Ashburn (`vps-8c-16g`)** — `8 vCPU / 16 GB DDR5 RAM / 200 GB NVMe / 1 Gbit/s` on Ubuntu 24.04 LTS, replacing expiring **Contabo Core (`vps-6c-12g`)** (`6 vCPU / 12 GB RAM / 100 GB NVMe`, expiring **December 8, 2026**).  
+> **Mandatory Pre-Deploy Gate:** Run the 5-Gate hardware detection & verification protocol in [`VPS-DEPLOY-TEST-FIRST.md`](VPS-DEPLOY-TEST-FIRST.md) (`grabtaculous profile detect --json` & `--profile auto`) on every VPS before cutover.  
 > **Zero-Secrets Policy:** Never commit real passwords, API keys, `GRABLAB_MASTER_KEY`, `GRAB_B2_APP_KEY`, or production private IPs to Git. Supply all secrets via untracked `.env` (`0600`) or secret managers.
 
 ---
@@ -88,17 +89,18 @@ sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled /etc/nginx/con
 
 | Profile ID | Hardware Target | NGINX `worker_processes` | Grisp Workers & Ports | Grisp Limit (`GOMEMLIMIT`) | PostgreSQL 18 Limit (`shared_buffers` / `effective_cache`) | Groxy AI | Redis 8.2 (`noeviction`) |
 |---|---|---|---|---|---|---|---|
-| **`vps-6c-12g`** | Legacy Contabo Core (`6 vCPU / 12 GB / 100 GB NVMe`) | `6` | `4` (`8765–8768`) | `640M` (`540MiB`) | `3072M` (`2GB` / `6GB`) | `512M` | `768M` (`512mb`) |
+| **`vps-6c-12g`** | Legacy Contabo Core (`6 vCPU / 12 GB / 100 GB NVMe`) | `6` | `4` (`8765–8768`) | `640M` (`520MiB`) | `3072M` (`2GB` / `6GB`) | `512M` | `768M` (`512mb`) |
 | **`vps-8c-16g`** | **Bluehost Ashburn (`8 vCPU / 16 GB DDR5 / 200 GB NVMe / 1 Gbit/s`)** | **`8`** | **`6` (`8765–8770`)** | **`768M` (`650MiB`)** | **`4096M` (`2560MB` / `8GB`)** | **`512M`** | **`1024M` (`768mb`)** |
-| **`vps-8c-24g`** | Scale-Up Tier 1 (`8 vCPU / 24 GB / 300 GB NVMe`) | `8` | `8` (`8765–8772`) | `1024M` (`860MiB`) | `6144M` (`4GB` / `12GB`) | `1024M` | `1536M` (`1024mb`) |
-| **`vps-8c-32g`** | Scale-Up Tier 2 (`8 vCPU / 32 GB / 400 GB NVMe`) | `8` | `8` (`8765–8772`) | `1536M` (`1280MiB`) | `8192M` (`6GB` / `18GB`) | `1024M` | `2048M` (`1536mb`) |
-| **`vps-16c-64g`** | Flagship Scale-Up (`16 vCPU / 64 GB / 800 GB NVMe`) | `16` | `8` (`8765–8772`) | `2048M` (`1700MiB`) | `16384M` (`12GB` / `36GB`) | `2048M` | `4096M` (`3072mb`) |
+| **`vps-8c-24g`** | Scale-Up Tier 1 (`8 vCPU / 24 GB / 300 GB NVMe`) | `8` | `6` (`8765–8770`) | `1024M` (`860MiB`) | `6144M` (`4GB` / `12GB`) | `1024M` | `1536M` (`1280mb`) |
+| **`vps-8c-32g`** | Scale-Up Tier 2 (`8 vCPU / 32 GB / 400 GB NVMe`) | `8` | `6` (`8765–8770`) | `1536M` (`1280MiB`) | `8192M` (`6GB` / `18GB`) | `1024M` | `2560M` (`2048mb`) |
+| **`vps-16c-64g`** | Flagship Scale-Up (`16 vCPU / 64 GB / 800 GB NVMe`) | `16` | `12` (`8765–8776`) | `2048M` (`1700MiB`) | `16384M` (`12GB` / `36GB`) | `2048M` | `4096M` (`3072mb`) |
 
 - **Mandatory NVMe Reserve Guard:** Every snapshot, rollout preflight, backup, and migration import enforces **`>= 15 GB` free NVMe space** AND **`<= 92%` disk usage** so PostgreSQL 18 WAL checkpoints and Docker pulls never stall.
-- **Instant Template Generation CLI:**
+- **Instant Hardware Auto-Detection & Template Generation CLI (`--profile auto`):**
   ```bash
-  grabtaculous profile render vps-8c-16g --domain bookstore.example.com --out-dir /opt/grisp-stack
-  grabtaculous edge render --profile vps-8c-16g --domain bookstore.example.com --wp-domain blog.bookstore.example.com --out-dir /
+  grabtaculous profile detect --json
+  grabtaculous profile render auto --domain bookstore.example.com --out-dir /opt/grisp-stack
+  grabtaculous edge render --profile auto --domain bookstore.example.com --wp-domain blog.bookstore.example.com --out-dir /
   ```
 
 ---
@@ -509,12 +511,11 @@ default_toast_compression = lz4
 log_min_duration_statement = 250
 ```
 
-### 3.6 `grab.data.json` & `grab.platform.json`
-**`grab.data.json`:**
+### 3.6 `grab.data.json` & `grab.platform.json` (StrictJSON `GRAB v1.1.0` Valid)
+**`grab.data.json` (`vps-8c-16g`):**
 ```json
 {
-  "version": 1,
-  "databases": {
+  "connections": {
     "main": {
       "driver": "postgres",
       "host": "postgres-18",
@@ -522,16 +523,19 @@ log_min_duration_statement = 250
       "database": "grablab",
       "user": "grablab",
       "password_env": "POSTGRES_PASSWORD",
-      "sslmode": "disable",
-      "max_open_conns": 16,
-      "max_idle_conns": 8,
-      "conn_max_lifetime_seconds": 900
+      "tls": "verify",
+      "pool": {
+        "max_open": 16,
+        "max_idle": 8,
+        "max_lifetime_ms": 900000,
+        "idle_timeout_ms": 300000
+      }
     }
   }
 }
 ```
 
-**`grab.platform.json`:**
+**`grab.platform.json` (`vps-8c-16g` — zero unknown fields):**
 ```json
 {
   "version": 1,
@@ -540,11 +544,21 @@ log_min_duration_statement = 250
       "driver": "redis",
       "host": "redis-8-2",
       "port": 6379,
+      "tls": "verify",
       "password_env": "REDIS_PASSWORD",
       "namespace": "grablab-prod",
-      "max_keys": 50000,
-      "max_bytes": 134217728
+      "max_keys": 75000,
+      "max_bytes": 268435456,
+      "pool_size": 10,
+      "operation_timeout_ms": 1000,
+      "allowed_cidrs": ["127.0.0.1/32", "::1/128"]
     }
+  },
+  "workers": {
+    "max_db_connections": 160,
+    "max_redis_connections": 160,
+    "db_headroom": 16,
+    "redis_headroom": 16
   }
 }
 ```

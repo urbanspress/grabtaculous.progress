@@ -5,7 +5,7 @@
 ---
 
 ## 1. Core Invariants & Upstream Scope
-1. **Read [`GRABTACULOUS-EXPERT.md`](GRABTACULOUS-EXPERT.md) first** before drafting any specification, editing any file, or reviewing any pull request.
+1. **Read [`GRABTACULOUS-EXPERT.md`](GRABTACULOUS-EXPERT.md) and [`VPS-DEPLOY-TEST-FIRST.md`](VPS-DEPLOY-TEST-FIRST.md) first** before drafting any specification, editing any file, deploying to any VPS, or reviewing any pull request.
 2. **Respect Ecosystem Layer Boundaries:** Treat **GRAB `v1.1.0`** (`Grisp`, `grab serve --workers --reload`, `/_health`, `/_ready`, `server.asset`, `grab migrate`, `ADR-005`, `ADR-017`), **Grex JS `v1.0.0`**, **GrabLab CMS `v1.0.1`**, **Grex Theme Builder `v1.0.0`**, **Groxy AI `v1.0.0`** (`deploy/docker-compose.yml`, `Site DNA`), and **`grabman v0.1.0`** (`grabman.lock`, `grabman doctor`) as distinct upstream/peer contracts. Never modify core GRAB Go compiler internals or `grablab-cms` application source inside `grabtaculous`.
 3. **Zero Public Control-Panel Port Exposure (`ADR-005`):** `grabtaculousd` binds strictly to private loopback (`127.0.0.1`) or rootless Unix sockets—never exposing a public unauthenticated management port on `0.0.0.0`. Remote **Gashboard** connections arrive exclusively over authenticated SSH tunnels.
 4. **Hardened `--read-only` Containers & Explicit Rollbacks:** Every app/marketplace container template MUST enforce `read_only: true`, `cap_drop: ["ALL"]`, `no-new-privileges:true`, non-root UID (`65532:65532`), loopback port publishing (`127.0.0.1`), and pinned image digests—backed by mandatory Pre-Deploy Snapshots before any rollout.

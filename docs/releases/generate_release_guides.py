@@ -38,11 +38,27 @@ def find_browser() -> str | None:
 def build_html(version: str) -> str:
     v = html.escape(version)
     if version.startswith("1.1."):
-        tier_label = "MINOR 1.x.0 — NGINX 1.30.6, VPS Profiles & Node Migration"
-        companion_pin = "&gt;= v1.0.0 (&lt; v2.0.0) (Grabtaculous v1.1.0)"
-        v110_sections = """
-  <h2>7. What&rsquo;s New in v1.1.0: Official NGINX 1.30.6 HTTP/3, X-Accel-Redirect &amp; Backblaze B2</h2>
-  <p>Grabtaculous <code>v1.1.0</code> upgrades VPS edge networking from stock Ubuntu <code>nginx 1.24.x</code> to the official <code>nginx.org</code> <strong>NGINX 1.30.6 (Stable)</strong> repository, enabling native QUIC/HTTP/3, multi-threaded zero-copy audiobook downloads, and automatic protection against legacy Debian config traps.</p>
+        if version == "1.1.0":
+            tier_label = "MINOR 1.x.0 — NGINX 1.30.6, VPS Profiles & Node Migration"
+            v111_section = ""
+        else:
+            tier_label = f"PATCH {version} — Universal Hardware Auto-Detection & 5-Gate Verification"
+            v111_section = """
+  <h2>9. Universal Zero-Shell Hardware Auto-Detection (<code>--profile auto</code>) &amp; 5-Gate Protocol</h2>
+  <p>Run <code>grabtaculous profile detect --json</code> and <code>--profile auto</code> on any VPS before touching containers or live traffic. Grabtaculous probes logical vCPUs, physical RAM, and root NVMe disk space natively without <code>sh -c</code> shell calls (<code>ADR-017</code>), enforces the mandatory <strong>&gt;= 15 GB free NVMe / &lt;= 92% usage reserve</strong> (<code>GRABTAC-E701</code>), and validates <code>deploy/grab.platform.json</code> with zero unknown fields (<code>GRAB-E210</code>) and loopback-only <code>allowed_cidrs</code> (<code>127.0.0.1/32</code>, <code>::1/128</code>) so <code>grabman doctor --strict</code> and <code>grab check</code> pass cleanly.</p>
+  <ol>
+    <li><strong>Gate 1 — Live Hardware &amp; NVMe Discovery:</strong> <code>grabtaculous profile detect --json</code> confirms CPU, RAM, and <code>"nvme_reserve_ok": true</code>.</li>
+    <li><strong>Gate 2 — Profile-Matched Rendering:</strong> <code>grabtaculous profile render auto</code> &amp; <code>grabtaculous edge render --profile auto</code> generate profile-tuned Compose, PostgreSQL 18, Redis 8.2, and NGINX <code>1.30.6</code> manifests.</li>
+    <li><strong>Gate 3 — Static Admission &amp; Syntax:</strong> <code>sudo nginx -t</code>, <code>grabtaculous audit --require-digest</code>, <code>grabman doctor --strict</code>, and <code>grabman solve --verify</code> exit <code>0</code>.</li>
+    <li><strong>Gate 4 — Zero-Downtime Rollout:</strong> Every worker <code>/_ready</code> endpoint returns HTTP <code>200</code> and <code>./deploy/reload-workers.sh --sighup</code> swaps cleanly.</li>
+    <li><strong>Gate 5 — Edge Security &amp; Headroom:</strong> Public unknown hosts drop (<code>444</code> / <code>ssl_reject_handshake on;</code>), <code>localhost</code> serves the Grex welcome page, and host RAM keeps <code>&gt;= 30&ndash;40%</code> free page-cache headroom.</li>
+  </ol>
+  <p>Complete 5-Gate instructions live in <code>VPS-DEPLOY-TEST-FIRST.md</code> (mirrored at <code>docs/VPS-DEPLOY-TEST-FIRST.md</code>).</p>
+"""
+        companion_pin = f"&gt;= v1.0.0 (&lt; v2.0.0) (Grabtaculous v{v})"
+        v110_sections = f"""
+  <h2>7. What&rsquo;s New in v1.1.x: Official NGINX 1.30.6 HTTP/3, X-Accel-Redirect &amp; Backblaze B2</h2>
+  <p>Grabtaculous <code>v{v}</code> upgrades VPS edge networking from stock Ubuntu <code>nginx 1.24.x</code> to the official <code>nginx.org</code> <strong>NGINX 1.30.6 (Stable)</strong> repository, enabling native QUIC/HTTP/3, multi-threaded zero-copy audiobook downloads, and automatic protection against legacy Debian config traps.</p>
   <div class="card-grid">
     <div class="card">
       <strong>Verified Host Bootstrapper (Zero Shell)</strong>
@@ -69,23 +85,23 @@ def build_html(version: str) -> str:
     <tbody>
       <tr><td><code>vps-6c-12g</code></td><td>6 vCPU / 12 GB / 100 GB</td><td>4 workers (<code>8765&ndash;8768</code>)</td><td>Legacy Contabo Core source node</td></tr>
       <tr><td><code>vps-8c-16g</code></td><td>8 vCPU / 16 GB / 200 GB</td><td>6 workers (<code>8765&ndash;8770</code>)</td><td>Primary Bluehost Ashburn production node</td></tr>
-      <tr><td><code>vps-8c-24g</code></td><td>8 vCPU / 24 GB / 300 GB</td><td>8 workers (<code>8765&ndash;8772</code>)</td><td>Scale-Up Tier 1 high-memory NVMe node</td></tr>
-      <tr><td><code>vps-8c-32g</code></td><td>8 vCPU / 32 GB / 400 GB</td><td>8 workers (<code>8765&ndash;8772</code>)</td><td>Scale-Up Tier 2 high-concurrency cluster node</td></tr>
-      <tr><td><code>vps-16c-64g</code></td><td>16 vCPU / 64 GB / 800 GB</td><td>8 workers (<code>8765&ndash;8772</code>)</td><td>Flagship enterprise multi-storefront NVMe node</td></tr>
+      <tr><td><code>vps-8c-24g</code></td><td>8 vCPU / 24 GB / 300 GB</td><td>6 workers (<code>8765&ndash;8770</code>)</td><td>Scale-Up Tier 1 high-memory NVMe node</td></tr>
+      <tr><td><code>vps-8c-32g</code></td><td>8 vCPU / 32 GB / 400 GB</td><td>6 workers (<code>8765&ndash;8770</code>)</td><td>Scale-Up Tier 2 high-concurrency cluster node</td></tr>
+      <tr><td><code>vps-16c-64g</code></td><td>16 vCPU / 64 GB / 800 GB</td><td>12 workers (<code>8765&ndash;8776</code>)</td><td>Flagship enterprise multi-storefront NVMe node</td></tr>
     </tbody>
   </table>
 
-  <pre># Render domain-free default grisp.conf &amp; Grex welcome page, or bind named domains
+  <pre># Gate 1 &amp; 2: Auto-detect VPS hardware and render profile-matched edge + Compose configs
+grabtaculous profile detect --json
 grabtaculous edge bootstrap-plan --codename noble --json
-grabtaculous edge render --profile vps-8c-16g --out-dir ./edge-out
-grabtaculous edge render --profile vps-8c-16g --domain bookstore.example.com --wp-domain blog.bookstore.example.com --out-dir ./edge-out
-grabtaculous profile render vps-8c-16g --domain bookstore.example.com --out-dir ./vps-stack
+grabtaculous edge render --profile auto --out-dir ./edge-out
+grabtaculous profile render auto --domain bookstore.example.com --out-dir ./vps-stack
 
 # Export &amp; verify/import Contabo -&gt; Bluehost migration bundle (zero .env/.key secrets included)
 grabtaculous migrate-export --dir ./contabo-ws --out ./contabo-to-bluehost.tar.gz --source-profile vps-6c-12g --target-profile vps-8c-16g --pg-dump ./pg18.sql
 grabtaculous migrate-import --bundle ./contabo-to-bluehost.tar.gz --dir ./bluehost-ws --target-profile vps-8c-16g</pre>
-  <p>Full step-by-step cutover instructions are maintained in <code>vps-starter-kit.md</code> (mirrored at <code>docs/vps-starter-kit.md</code>).</p>
-"""
+  <p>Full step-by-step cutover instructions are maintained in <code>vps-starter-kit.md</code> (mirrored at <code>docs/vps-starter-kit.md</code>) and <code>VPS-DEPLOY-TEST-FIRST.md</code>.</p>
+{v111_section}"""
         extra_catalog_rows = """
       <tr><td><code>searxng</code></td><td>Groxy AI Companion</td><td>Hardened <code>--read-only</code> loopback (<code>127.0.0.1</code>) SearXNG private metasearch engine (<code>2026.10.1</code>)</td></tr>
       <tr><td><code>wordpress-fpm</code></td><td>Companion CMS</td><td>Isolated <code>--read-only</code> WordPress <code>6.8.1</code> PHP-FPM + private MariaDB 11.8 behind NGINX 1.30.6</td></tr>"""

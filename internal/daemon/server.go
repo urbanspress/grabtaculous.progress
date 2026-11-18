@@ -24,7 +24,7 @@ import (
 
 const (
 	DefaultListenAddr = "127.0.0.1:9440"
-	DaemonVersion     = "1.1.0"
+	DaemonVersion     = "1.1.1"
 )
 
 // ServerConfig configures the loopback / Unix-socket supervisor daemon (ADR-005).

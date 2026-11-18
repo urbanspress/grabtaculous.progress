@@ -1,6 +1,8 @@
 package compose
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,150 +12,228 @@ import (
 
 // HardwareProfile defines hardware-tuned resource budgets for Contabo, Bluehost, and future VPS tiers.
 type HardwareProfile struct {
-	ID                       string `json:"id"`
-	Label                    string `json:"label"`
-	ProviderExample          string `json:"provider_example"`
-	VCPU                     int    `json:"vcpu"`
-	RAMGB                    int    `json:"ram_gb"`
-	NVMeGB                   int    `json:"nvme_gb"`
-	NginxWorkers             int    `json:"nginx_workers"`
-	GrispWorkers             int    `json:"grisp_workers"`
-	GrispBasePort            int    `json:"grisp_base_port"`
-	GrispPorts               []int  `json:"grisp_ports"`
-	GrispMemoryLimit         string `json:"grisp_memory_limit"`
-	GrispGoMemLimit          string `json:"grisp_gomemlimit"`
-	PostgresMemoryLimit      string `json:"postgres_memory_limit"`
-	PostgresSharedBuffers    string `json:"postgres_shared_buffers"`
-	PostgresEffectiveCache   string `json:"postgres_effective_cache"`
-	PostgresWorkMem          string `json:"postgres_work_mem"`
-	PostgresMaxConnections   int    `json:"postgres_max_connections"`
-	GroxyMemoryLimit         string `json:"groxy_memory_limit"`
-	RedisMemoryLimit         string `json:"redis_memory_limit"`
-	RedisMaxMemory           string `json:"redis_maxmemory"`
-	MinFreeNVMeGB            int    `json:"min_free_nvme_gb"`
-	MaxDiskUsedPercent       int    `json:"max_disk_used_percent"`
+	ID                         string `json:"id"`
+	Label                      string `json:"label"`
+	ProviderExample            string `json:"provider_example"`
+	VCPU                       int    `json:"vcpu"`
+	RAMGB                      int    `json:"ram_gb"`
+	NVMeGB                     int    `json:"nvme_gb"`
+	NginxWorkers               int    `json:"nginx_workers"`
+	GrispWorkers               int    `json:"grisp_workers"`
+	GrispBasePort              int    `json:"grisp_base_port"`
+	GrispPorts                 []int  `json:"grisp_ports"`
+	GrispCPULimit              string `json:"grisp_cpu_limit"`
+	GrispCPUReservation        string `json:"grisp_cpu_reservation"`
+	GrispMemoryLimit           string `json:"grisp_memory_limit"`
+	GrispMemReservation        string `json:"grisp_memory_reservation"`
+	GrispGoMemLimit            string `json:"grisp_gomemlimit"`
+	PostgresCPULimit           string `json:"postgres_cpu_limit"`
+	PostgresCPUReservation     string `json:"postgres_cpu_reservation"`
+	PostgresMemoryLimit        string `json:"postgres_memory_limit"`
+	PostgresMemReservation     string `json:"postgres_memory_reservation"`
+	PostgresShmSize            string `json:"postgres_shm_size"`
+	PostgresSharedBuffers      string `json:"postgres_shared_buffers"`
+	PostgresEffectiveCache     string `json:"postgres_effective_cache"`
+	PostgresWorkMem            string `json:"postgres_work_mem"`
+	PostgresMaxConnections     int    `json:"postgres_max_connections"`
+	PostgresIOWorkers          int    `json:"postgres_io_workers"`
+	PostgresMaxWorkerProcesses int    `json:"postgres_max_worker_processes"`
+	PostgresMaxParallelWorkers int    `json:"postgres_max_parallel_workers"`
+	PostgresParallelPerGather  int    `json:"postgres_parallel_per_gather"`
+	GroxyCPULimit              string `json:"groxy_cpu_limit"`
+	GroxyMemoryLimit           string `json:"groxy_memory_limit"`
+	RedisCPULimit              string `json:"redis_cpu_limit"`
+	RedisMemoryLimit           string `json:"redis_memory_limit"`
+	RedisMaxMemory             string `json:"redis_maxmemory"`
+	MinFreeNVMeGB              int    `json:"min_free_nvme_gb"`
+	MaxDiskUsedPercent         int    `json:"max_disk_used_percent"`
 }
 
 var hardwareProfiles = map[string]HardwareProfile{
 	"vps-6c-12g": {
-		ID:                     "vps-6c-12g",
-		Label:                  "Legacy Contabo Core (6 vCPU / 12 GB RAM / 100 GB NVMe)",
-		ProviderExample:        "Contabo Core VPS (Expiring Dec 8, 2026)",
-		VCPU:                   6,
-		RAMGB:                  12,
-		NVMeGB:                 100,
-		NginxWorkers:           6,
-		GrispWorkers:           4,
-		GrispBasePort:          8765,
-		GrispPorts:             []int{8765, 8766, 8767, 8768},
-		GrispMemoryLimit:       "640M",
-		GrispGoMemLimit:        "540MiB",
-		PostgresMemoryLimit:    "3072M",
-		PostgresSharedBuffers:  "2GB",
-		PostgresEffectiveCache: "6GB",
-		PostgresWorkMem:        "16MB",
-		PostgresMaxConnections: 120,
-		GroxyMemoryLimit:       "512M",
-		RedisMemoryLimit:       "768M",
-		RedisMaxMemory:         "512mb",
-		MinFreeNVMeGB:          15,
-		MaxDiskUsedPercent:     92,
+		ID:                         "vps-6c-12g",
+		Label:                      "Contabo Core (6 vCPU / 12 GB RAM / 100 GB NVMe)",
+		ProviderExample:            "Contabo Core VPS (6 vCPU / 12 GB RAM)",
+		VCPU:                       6,
+		RAMGB:                      12,
+		NVMeGB:                     100,
+		NginxWorkers:               6,
+		GrispWorkers:               4,
+		GrispBasePort:              8765,
+		GrispPorts:                 []int{8765, 8766, 8767, 8768},
+		GrispCPULimit:              "1.25",
+		GrispCPUReservation:        "0.50",
+		GrispMemoryLimit:           "640M",
+		GrispMemReservation:        "320M",
+		GrispGoMemLimit:            "520MiB",
+		PostgresCPULimit:           "2.50",
+		PostgresCPUReservation:     "1.50",
+		PostgresMemoryLimit:        "3072M",
+		PostgresMemReservation:     "2048M",
+		PostgresShmSize:            "1024m",
+		PostgresSharedBuffers:      "2GB",
+		PostgresEffectiveCache:     "6GB",
+		PostgresWorkMem:            "10MB",
+		PostgresMaxConnections:     100,
+		PostgresIOWorkers:          3,
+		PostgresMaxWorkerProcesses: 6,
+		PostgresMaxParallelWorkers: 3,
+		PostgresParallelPerGather:  2,
+		GroxyCPULimit:              "1.00",
+		GroxyMemoryLimit:           "512M",
+		RedisCPULimit:              "0.75",
+		RedisMemoryLimit:           "768M",
+		RedisMaxMemory:             "512mb",
+		MinFreeNVMeGB:              15,
+		MaxDiskUsedPercent:         92,
 	},
 	"vps-8c-16g": {
-		ID:                     "vps-8c-16g",
-		Label:                  "Primary Target: Bluehost Ashburn (8 vCPU / 16 GB DDR5 / 200 GB NVMe)",
-		ProviderExample:        "Bluehost Ashburn 1 Gbit/s Ubuntu 24.04 LTS",
-		VCPU:                   8,
-		RAMGB:                  16,
-		NVMeGB:                 200,
-		NginxWorkers:           8,
-		GrispWorkers:           6,
-		GrispBasePort:          8765,
-		GrispPorts:             []int{8765, 8766, 8767, 8768, 8769, 8770},
-		GrispMemoryLimit:       "768M",
-		GrispGoMemLimit:        "650MiB",
-		PostgresMemoryLimit:    "4096M",
-		PostgresSharedBuffers:  "2560MB",
-		PostgresEffectiveCache: "8GB",
-		PostgresWorkMem:        "24MB",
-		PostgresMaxConnections: 160,
-		GroxyMemoryLimit:       "512M",
-		RedisMemoryLimit:       "1024M",
-		RedisMaxMemory:         "768mb",
-		MinFreeNVMeGB:          15,
-		MaxDiskUsedPercent:     92,
+		ID:                         "vps-8c-16g",
+		Label:                      "Primary Target: Bluehost Ashburn (8 vCPU / 16 GB DDR5 / 200 GB NVMe)",
+		ProviderExample:            "Bluehost Ashburn 1 Gbit/s Ubuntu 24.04 LTS",
+		VCPU:                       8,
+		RAMGB:                      16,
+		NVMeGB:                     200,
+		NginxWorkers:               8,
+		GrispWorkers:               6,
+		GrispBasePort:              8765,
+		GrispPorts:                 []int{8765, 8766, 8767, 8768, 8769, 8770},
+		GrispCPULimit:              "1.50",
+		GrispCPUReservation:        "0.50",
+		GrispMemoryLimit:           "768M",
+		GrispMemReservation:        "384M",
+		GrispGoMemLimit:            "650MiB",
+		PostgresCPULimit:           "3.00",
+		PostgresCPUReservation:     "1.50",
+		PostgresMemoryLimit:        "4096M",
+		PostgresMemReservation:     "2560M",
+		PostgresShmSize:            "1024m",
+		PostgresSharedBuffers:      "2560MB",
+		PostgresEffectiveCache:     "8GB",
+		PostgresWorkMem:            "24MB",
+		PostgresMaxConnections:     160,
+		PostgresIOWorkers:          4,
+		PostgresMaxWorkerProcesses: 8,
+		PostgresMaxParallelWorkers: 4,
+		PostgresParallelPerGather:  2,
+		GroxyCPULimit:              "1.00",
+		GroxyMemoryLimit:           "512M",
+		RedisCPULimit:              "1.00",
+		RedisMemoryLimit:           "1024M",
+		RedisMaxMemory:             "768mb",
+		MinFreeNVMeGB:              15,
+		MaxDiskUsedPercent:         92,
 	},
 	"vps-8c-24g": {
-		ID:                     "vps-8c-24g",
-		Label:                  "Scale-Up Tier 1 (8 vCPU / 24 GB RAM / 300 GB NVMe)",
-		ProviderExample:        "Scale-Up High-Memory NVMe Node",
-		VCPU:                   8,
-		RAMGB:                  24,
-		NVMeGB:                 300,
-		NginxWorkers:           8,
-		GrispWorkers:           8,
-		GrispBasePort:          8765,
-		GrispPorts:             []int{8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772},
-		GrispMemoryLimit:       "1024M",
-		GrispGoMemLimit:        "860MiB",
-		PostgresMemoryLimit:    "6144M",
-		PostgresSharedBuffers:  "4GB",
-		PostgresEffectiveCache: "12GB",
-		PostgresWorkMem:        "32MB",
-		PostgresMaxConnections: 200,
-		GroxyMemoryLimit:       "1024M",
-		RedisMemoryLimit:       "1536M",
-		RedisMaxMemory:         "1024mb",
-		MinFreeNVMeGB:          15,
-		MaxDiskUsedPercent:     92,
+		ID:                         "vps-8c-24g",
+		Label:                      "Scale-Up Tier 1 (8 vCPU / 24 GB RAM / 300 GB NVMe)",
+		ProviderExample:            "Scale-Up High-Memory NVMe Node",
+		VCPU:                       8,
+		RAMGB:                      24,
+		NVMeGB:                     300,
+		NginxWorkers:               8,
+		GrispWorkers:               6,
+		GrispBasePort:              8765,
+		GrispPorts:                 []int{8765, 8766, 8767, 8768, 8769, 8770},
+		GrispCPULimit:              "1.50",
+		GrispCPUReservation:        "0.50",
+		GrispMemoryLimit:           "1024M",
+		GrispMemReservation:        "512M",
+		GrispGoMemLimit:            "860MiB",
+		PostgresCPULimit:           "3.50",
+		PostgresCPUReservation:     "2.00",
+		PostgresMemoryLimit:        "6144M",
+		PostgresMemReservation:     "4096M",
+		PostgresShmSize:            "1536m",
+		PostgresSharedBuffers:      "4GB",
+		PostgresEffectiveCache:     "12GB",
+		PostgresWorkMem:            "32MB",
+		PostgresMaxConnections:     200,
+		PostgresIOWorkers:          4,
+		PostgresMaxWorkerProcesses: 8,
+		PostgresMaxParallelWorkers: 4,
+		PostgresParallelPerGather:  2,
+		GroxyCPULimit:              "1.00",
+		GroxyMemoryLimit:           "1024M",
+		RedisCPULimit:              "1.00",
+		RedisMemoryLimit:           "1536M",
+		RedisMaxMemory:             "1280mb",
+		MinFreeNVMeGB:              15,
+		MaxDiskUsedPercent:         92,
 	},
 	"vps-8c-32g": {
-		ID:                     "vps-8c-32g",
-		Label:                  "Scale-Up Tier 2 (8 vCPU / 32 GB RAM / 400 GB NVMe)",
-		ProviderExample:        "High-Concurrency Bookstore Cluster Node",
-		VCPU:                   8,
-		RAMGB:                  32,
-		NVMeGB:                 400,
-		NginxWorkers:           8,
-		GrispWorkers:           8,
-		GrispBasePort:          8765,
-		GrispPorts:             []int{8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772},
-		GrispMemoryLimit:       "1536M",
-		GrispGoMemLimit:        "1280MiB",
-		PostgresMemoryLimit:    "8192M",
-		PostgresSharedBuffers:  "6GB",
-		PostgresEffectiveCache: "18GB",
-		PostgresWorkMem:        "48MB",
-		PostgresMaxConnections: 240,
-		GroxyMemoryLimit:       "1024M",
-		RedisMemoryLimit:       "2048M",
-		RedisMaxMemory:         "1536mb",
-		MinFreeNVMeGB:          15,
-		MaxDiskUsedPercent:     92,
+		ID:                         "vps-8c-32g",
+		Label:                      "Scale-Up Tier 2 (8 vCPU / 32 GB RAM / 400 GB NVMe)",
+		ProviderExample:            "High-Concurrency Bookstore Cluster Node",
+		VCPU:                       8,
+		RAMGB:                      32,
+		NVMeGB:                     400,
+		NginxWorkers:               8,
+		GrispWorkers:               6,
+		GrispBasePort:              8765,
+		GrispPorts:                 []int{8765, 8766, 8767, 8768, 8769, 8770},
+		GrispCPULimit:              "1.50",
+		GrispCPUReservation:        "0.50",
+		GrispMemoryLimit:           "1536M",
+		GrispMemReservation:        "768M",
+		GrispGoMemLimit:            "1280MiB",
+		PostgresCPULimit:           "4.00",
+		PostgresCPUReservation:     "2.00",
+		PostgresMemoryLimit:        "8192M",
+		PostgresMemReservation:     "6144M",
+		PostgresShmSize:            "2048m",
+		PostgresSharedBuffers:      "6GB",
+		PostgresEffectiveCache:     "18GB",
+		PostgresWorkMem:            "48MB",
+		PostgresMaxConnections:     240,
+		PostgresIOWorkers:          4,
+		PostgresMaxWorkerProcesses: 8,
+		PostgresMaxParallelWorkers: 4,
+		PostgresParallelPerGather:  2,
+		GroxyCPULimit:              "1.00",
+		GroxyMemoryLimit:           "1024M",
+		RedisCPULimit:              "1.00",
+		RedisMemoryLimit:           "2560M",
+		RedisMaxMemory:             "2048mb",
+		MinFreeNVMeGB:              15,
+		MaxDiskUsedPercent:         92,
 	},
 	"vps-16c-64g": {
-		ID:                     "vps-16c-64g",
-		Label:                  "Flagship Enterprise Scale-Up (16 vCPU / 64 GB RAM / 800 GB NVMe)",
-		ProviderExample:        "Dedicated Multi-Storefront NVMe Flagship",
-		VCPU:                   16,
-		RAMGB:                  64,
-		NVMeGB:                 800,
-		NginxWorkers:           16,
-		GrispWorkers:           8,
-		GrispBasePort:          8765,
-		GrispPorts:             []int{8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772},
-		GrispMemoryLimit:       "2048M",
-		GrispGoMemLimit:        "1700MiB",
-		PostgresMemoryLimit:    "16384M",
-		PostgresSharedBuffers:  "12GB",
-		PostgresEffectiveCache: "36GB",
-		PostgresWorkMem:        "64MB",
-		PostgresMaxConnections: 320,
-		GroxyMemoryLimit:       "2048M",
-		RedisMemoryLimit:       "4096M",
-		RedisMaxMemory:         "3072mb",
-		MinFreeNVMeGB:          15,
-		MaxDiskUsedPercent:     92,
+		ID:                         "vps-16c-64g",
+		Label:                      "Flagship Enterprise Scale-Up (16 vCPU / 64 GB RAM / 800 GB NVMe)",
+		ProviderExample:            "Dedicated Multi-Storefront NVMe Flagship",
+		VCPU:                       16,
+		RAMGB:                      64,
+		NVMeGB:                     800,
+		NginxWorkers:               16,
+		GrispWorkers:               12,
+		GrispBasePort:              8765,
+		GrispPorts:                 []int{8765, 8766, 8767, 8768, 8769, 8770, 8771, 8772, 8773, 8774, 8775, 8776},
+		GrispCPULimit:              "2.00",
+		GrispCPUReservation:        "1.00",
+		GrispMemoryLimit:           "2048M",
+		GrispMemReservation:        "1024M",
+		GrispGoMemLimit:            "1700MiB",
+		PostgresCPULimit:           "6.00",
+		PostgresCPUReservation:     "4.00",
+		PostgresMemoryLimit:        "16384M",
+		PostgresMemReservation:     "12288M",
+		PostgresShmSize:            "4096m",
+		PostgresSharedBuffers:      "12GB",
+		PostgresEffectiveCache:     "36GB",
+		PostgresWorkMem:            "64MB",
+		PostgresMaxConnections:     320,
+		PostgresIOWorkers:          6,
+		PostgresMaxWorkerProcesses: 16,
+		PostgresMaxParallelWorkers: 8,
+		PostgresParallelPerGather:  4,
+		GroxyCPULimit:              "2.00",
+		GroxyMemoryLimit:           "2048M",
+		RedisCPULimit:              "2.00",
+		RedisMemoryLimit:           "4096M",
+		RedisMaxMemory:             "3072mb",
+		MinFreeNVMeGB:              15,
+		MaxDiskUsedPercent:         92,
 	},
 }
 
@@ -224,7 +304,14 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 		b.WriteString("      - no-new-privileges:true\n")
 		b.WriteString("    tmpfs:\n")
 		b.WriteString("      - /tmp:rw,noexec,nosuid,size=64m\n")
-		fmt.Fprintf(&b, "    mem_limit: %s\n", p.GrispMemoryLimit)
+		b.WriteString("    deploy:\n")
+		b.WriteString("      resources:\n")
+		b.WriteString("        limits:\n")
+		fmt.Fprintf(&b, "          cpus: %q\n", p.GrispCPULimit)
+		fmt.Fprintf(&b, "          memory: %s\n", p.GrispMemoryLimit)
+		b.WriteString("        reservations:\n")
+		fmt.Fprintf(&b, "          cpus: %q\n", p.GrispCPUReservation)
+		fmt.Fprintf(&b, "          memory: %s\n", p.GrispMemReservation)
 		b.WriteString("    stop_grace_period: 35s\n")
 		b.WriteString("    ports:\n")
 		fmt.Fprintf(&b, "      - \"127.0.0.1:%d:8080\"\n", port)
@@ -240,6 +327,7 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 		b.WriteString("      - grabtac_internal\n")
 		b.WriteString("    environment:\n")
 		fmt.Fprintf(&b, "      GOMEMLIMIT: %q\n", p.GrispGoMemLimit)
+		b.WriteString("      GOGC: \"100\"\n")
 		b.WriteString("      GRABLAB_MASTER_KEY: \"${GRABLAB_MASTER_KEY:?Set GRABLAB_MASTER_KEY in .env or secret manager}\"\n")
 		b.WriteString("      GRABLAB_MAX_UPLOAD_BYTES: \"${GRABLAB_MAX_UPLOAD_BYTES:-10485760}\"\n")
 		b.WriteString("      GRABLAB_TRUSTED_PROXY: \"${GRABLAB_TRUSTED_PROXY:-127.0.0.1}\"\n")
@@ -295,6 +383,13 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 	}
 
 	// Grex Theme Builder Studio
+	builderPort := 8771
+	for _, gp := range p.GrispPorts {
+		if gp == builderPort {
+			builderPort = p.GrispPorts[len(p.GrispPorts)-1] + 1
+			break
+		}
+	}
 	b.WriteString("  grex-builder-studio:\n")
 	b.WriteString("    image: ${GREX_BUILDER_IMAGE:-ghcr.io/urbanspress/grex-builder:v1.0.0@sha256:9f4b23c421a4b1f079a96f8cc03ab31bc10d409e413bcbb52d0a9e77101f1000}\n")
 	b.WriteString("    container_name: grabtac-grex-builder\n")
@@ -306,15 +401,21 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 	b.WriteString("      - no-new-privileges:true\n")
 	b.WriteString("    tmpfs:\n")
 	b.WriteString("      - /tmp:rw,noexec,nosuid,size=64m\n")
-	b.WriteString("    mem_limit: 512M\n")
+	b.WriteString("    deploy:\n")
+	b.WriteString("      resources:\n")
+	b.WriteString("        limits:\n")
+	fmt.Fprintf(&b, "          cpus: %q\n", p.GroxyCPULimit)
+	b.WriteString("          memory: 512M\n")
 	b.WriteString("    ports:\n")
-	b.WriteString("      - \"127.0.0.1:8771:8080\"\n")
+	fmt.Fprintf(&b, "      - \"127.0.0.1:%d:8080\"\n", builderPort)
 	b.WriteString("    volumes:\n")
 	b.WriteString("      - builder-storage:/app/storage:rw\n")
 	b.WriteString("      - /var/lib/grisp/public/grex:/app/public/grex:rw\n")
 	b.WriteString("    networks:\n")
 	b.WriteString("      - grabtac_loopback\n")
 	b.WriteString("      - grabtac_internal\n")
+	b.WriteString("    environment:\n")
+	b.WriteString("      GOMEMLIMIT: \"420MiB\"\n")
 	b.WriteString("    restart: unless-stopped\n")
 
 	// Groxy AI v1.8.0
@@ -329,7 +430,11 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 	b.WriteString("      - no-new-privileges:true\n")
 	b.WriteString("    tmpfs:\n")
 	b.WriteString("      - /tmp:rw,noexec,nosuid,size=64m\n")
-	fmt.Fprintf(&b, "    mem_limit: %s\n", p.GroxyMemoryLimit)
+	b.WriteString("    deploy:\n")
+	b.WriteString("      resources:\n")
+	b.WriteString("        limits:\n")
+	fmt.Fprintf(&b, "          cpus: %q\n", p.GroxyCPULimit)
+	fmt.Fprintf(&b, "          memory: %s\n", p.GroxyMemoryLimit)
 	b.WriteString("    ports:\n")
 	b.WriteString("      - \"127.0.0.1:8090:8090\"\n")
 	b.WriteString("    volumes:\n")
@@ -339,6 +444,7 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 	b.WriteString("      - grabtac_loopback\n")
 	b.WriteString("      - grabtac_internal\n")
 	b.WriteString("    environment:\n")
+	b.WriteString("      GOMEMLIMIT: \"420MiB\"\n")
 	b.WriteString("      GROXY_MASTER_KEY: \"${GROXY_MASTER_KEY:?Set GROXY_MASTER_KEY in .env or secret manager}\"\n")
 	b.WriteString("      GROXY_PROVIDER_API_KEY: \"${GROXY_PROVIDER_API_KEY:-}\"\n")
 	b.WriteString("      GROXY_TRUSTED_PROXY: \"${GROXY_TRUSTED_PROXY:-127.0.0.1}\"\n")
@@ -357,7 +463,15 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 	b.WriteString("    tmpfs:\n")
 	b.WriteString("      - /tmp:rw,noexec,nosuid,size=64m\n")
 	b.WriteString("      - /var/run/postgresql:rw,noexec,nosuid,size=16m\n")
-	fmt.Fprintf(&b, "    mem_limit: %s\n", p.PostgresMemoryLimit)
+	fmt.Fprintf(&b, "    shm_size: %s\n", p.PostgresShmSize)
+	b.WriteString("    deploy:\n")
+	b.WriteString("      resources:\n")
+	b.WriteString("        limits:\n")
+	fmt.Fprintf(&b, "          cpus: %q\n", p.PostgresCPULimit)
+	fmt.Fprintf(&b, "          memory: %s\n", p.PostgresMemoryLimit)
+	b.WriteString("        reservations:\n")
+	fmt.Fprintf(&b, "          cpus: %q\n", p.PostgresCPUReservation)
+	fmt.Fprintf(&b, "          memory: %s\n", p.PostgresMemReservation)
 	b.WriteString("    ports:\n")
 	b.WriteString("      - \"127.0.0.1:5432:5432\"\n")
 	b.WriteString("    volumes:\n")
@@ -388,7 +502,11 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 	b.WriteString("      - no-new-privileges:true\n")
 	b.WriteString("    tmpfs:\n")
 	b.WriteString("      - /tmp:rw,noexec,nosuid,size=64m\n")
-	fmt.Fprintf(&b, "    mem_limit: %s\n", p.RedisMemoryLimit)
+	b.WriteString("    deploy:\n")
+	b.WriteString("      resources:\n")
+	b.WriteString("        limits:\n")
+	fmt.Fprintf(&b, "          cpus: %q\n", p.RedisCPULimit)
+	fmt.Fprintf(&b, "          memory: %s\n", p.RedisMemoryLimit)
 	b.WriteString("    ports:\n")
 	b.WriteString("      - \"127.0.0.1:6379:6379\"\n")
 	b.WriteString("    volumes:\n")
@@ -401,6 +519,10 @@ func RenderProfileCompose(profileID, domain string) ([]byte, error) {
 	b.WriteString("      - \"redis-server\"\n")
 	b.WriteString("      - \"--appendonly\"\n")
 	b.WriteString("      - \"yes\"\n")
+	b.WriteString("      - \"--appendfsync\"\n")
+	b.WriteString("      - \"everysec\"\n")
+	b.WriteString("      - \"--tcp-backlog\"\n")
+	b.WriteString("      - \"2048\"\n")
 	b.WriteString("      - \"--maxmemory\"\n")
 	fmt.Fprintf(&b, "      - %q\n", p.RedisMaxMemory)
 	b.WriteString("      - \"--maxmemory-policy\"\n")
@@ -440,14 +562,24 @@ effective_cache_size = %s
 work_mem = %s
 maintenance_work_mem = 256MB
 wal_level = replica
+wal_compression = zstd
+synchronous_commit = on
+wal_buffers = 32MB
 max_wal_size = 2GB
 min_wal_size = 512MB
 checkpoint_completion_target = 0.9
 random_page_cost = 1.1
 effective_io_concurrency = 200
+io_method = worker
+io_workers = %d
+max_worker_processes = %d
+max_parallel_workers = %d
+max_parallel_workers_per_gather = %d
+autovacuum_vacuum_scale_factor = 0.05
+autovacuum_analyze_scale_factor = 0.02
 default_toast_compression = lz4
 log_min_duration_statement = 250
-`, p.ID, p.Label, p.PostgresMaxConnections, p.PostgresSharedBuffers, p.PostgresEffectiveCache, p.PostgresWorkMem)), nil
+`, p.ID, p.Label, p.PostgresMaxConnections, p.PostgresSharedBuffers, p.PostgresEffectiveCache, p.PostgresWorkMem, p.PostgresIOWorkers, p.PostgresMaxWorkerProcesses, p.PostgresMaxParallelWorkers, p.PostgresParallelPerGather)), nil
 }
 
 // RenderReloadWorkersScript emits deploy/reload-workers.sh supporting --sighup and --recreate gated on /_ready === 200.
@@ -466,6 +598,7 @@ set -euo pipefail
 # Usage: ./deploy/reload-workers.sh [--sighup|--recreate]
 
 MODE="${1:---recreate}"
+WORKER_COUNT=%d
 PORTS=(%s)
 COMPOSE_FILE="${COMPOSE_FILE:-deploy/docker-compose.yml}"
 
@@ -509,7 +642,7 @@ fi
 
 echo "Usage: $0 [--sighup|--recreate]" >&2
 exit 2
-`, p.ID, strings.Join(portList, " "), p.GrispWorkers, p.GrispWorkers)), nil
+`, p.ID, p.GrispWorkers, strings.Join(portList, " "), p.GrispWorkers, p.GrispWorkers)), nil
 }
 
 // RenderGrispSystemdUnit emits a hardened systemd unit managing the Compose stack.
@@ -591,4 +724,115 @@ fi
 ls -1dt "${BACKUP_ROOT}"/20* 2>/dev/null | tail -n +8 | xargs -r rm -rf
 echo "Backup checkpoint ${STAMP} verified cleanly."
 `, p.ID, p.MaxDiskUsedPercent)), nil
+}
+
+// RenderGrabDataJSON emits a GRAB v1.1.0 StrictJSON-valid grab.data.json tuned for the hardware profile.
+func RenderGrabDataJSON(profileID string) ([]byte, error) {
+	p, err := GetProfile(profileID)
+	if err != nil {
+		return nil, err
+	}
+	maxOpen, maxIdle := profileDBPoolSizing(p)
+	doc := map[string]any{
+		"connections": map[string]any{
+			"main": map[string]any{
+				"driver":       "postgres",
+				"host":         "postgres-18",
+				"port":         5432,
+				"database":     "grablab",
+				"user":         "grablab",
+				"password_env": "POSTGRES_PASSWORD",
+				"tls":          "verify",
+				"pool": map[string]any{
+					"max_open":        maxOpen,
+					"max_idle":        maxIdle,
+					"max_lifetime_ms": 900000,
+					"idle_timeout_ms": 300000,
+				},
+			},
+		},
+	}
+	return marshalPrettyJSON(doc)
+}
+
+// RenderGrabPlatformJSON emits a GRAB v1.1.0 StrictJSON-valid grab.platform.json tuned for the hardware profile.
+// Per GRAB-E210 (DisallowUnknownFields), it never emits an unknown "count" field inside "workers";
+// worker count lives strictly in docker-compose.yml, grisp.conf, and reload-workers.sh (WORKER_COUNT).
+func RenderGrabPlatformJSON(profileID string) ([]byte, error) {
+	p, err := GetProfile(profileID)
+	if err != nil {
+		return nil, err
+	}
+	_, _ = profileDBPoolSizing(p)
+	maxKeys, maxBytes, poolSize, maxRedisConns, dbHeadroom, redisHeadroom := profileCacheSizing(p)
+	doc := map[string]any{
+		"version": 1,
+		"caches": map[string]any{
+			"cms": map[string]any{
+				"driver":               "redis",
+				"host":                 "redis-8-2",
+				"port":                 6379,
+				"tls":                  "verify",
+				"password_env":         "REDIS_PASSWORD",
+				"namespace":            "grablab-prod",
+				"max_keys":             maxKeys,
+				"max_bytes":            maxBytes,
+				"pool_size":            poolSize,
+				"operation_timeout_ms": 1000,
+				"allowed_cidrs":        []string{"127.0.0.1/32", "::1/128"},
+			},
+		},
+		"workers": map[string]any{
+			"max_db_connections":    p.PostgresMaxConnections,
+			"max_redis_connections": maxRedisConns,
+			"db_headroom":           dbHeadroom,
+			"redis_headroom":        redisHeadroom,
+		},
+	}
+	return marshalPrettyJSON(doc)
+}
+
+func profileDBPoolSizing(p *HardwareProfile) (maxOpen int, maxIdle int) {
+	switch p.ID {
+	case "vps-6c-12g":
+		return 16, 8
+	case "vps-8c-16g":
+		return 16, 8
+	case "vps-8c-24g":
+		return 20, 10
+	case "vps-8c-32g":
+		return 24, 12
+	case "vps-16c-64g":
+		return 20, 10
+	default:
+		return 16, 8
+	}
+}
+
+func profileCacheSizing(p *HardwareProfile) (maxKeys, maxBytes, poolSize, maxRedisConns, dbHeadroom, redisHeadroom int) {
+	switch p.ID {
+	case "vps-6c-12g":
+		return 50000, 134217728, 8, 128, 16, 16
+	case "vps-8c-16g":
+		return 75000, 268435456, 10, 160, 16, 16
+	case "vps-8c-24g":
+		return 100000, 402653184, 12, 192, 20, 20
+	case "vps-8c-32g":
+		return 150000, 536870912, 16, 256, 24, 24
+	case "vps-16c-64g":
+		return 300000, 1073741824, 16, 320, 24, 32
+	default:
+		return 75000, 268435456, 10, 160, 16, 16
+	}
+}
+
+func marshalPrettyJSON(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

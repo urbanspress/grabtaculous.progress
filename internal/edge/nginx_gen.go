@@ -16,25 +16,28 @@ var (
 
 // NginxConfigOptions configures production NGINX 1.30.6 Stable reverse-proxy generation.
 type NginxConfigOptions struct {
-	Domain          string `json:"domain"`
-	WPDomain        string `json:"wp_domain,omitempty"`
-	WorkerProcesses int    `json:"worker_processes"`
-	UpstreamName    string `json:"upstream_name,omitempty"`
-	UpstreamHost    string `json:"upstream_host"`
-	UpstreamPorts   []int  `json:"upstream_ports"`
-	UploadAliasDir  string `json:"upload_alias_dir"`
-	CertBaseDir     string `json:"cert_base_dir"`
-	WelcomeRootDir  string `json:"welcome_root_dir,omitempty"`
-	DefaultSSLCert  string `json:"default_ssl_cert,omitempty"`
-	DefaultSSLKey   string `json:"default_ssl_key,omitempty"`
-	WPWebRoot       string `json:"wp_web_root"`
-	WPPHPFPMAdr     string `json:"wp_php_fpm_addr"`
-	MediaRateAfter  string `json:"media_rate_after"`
-	MediaLimitRate  string `json:"media_limit_rate"`
-	AccessLogPath   string `json:"access_log_path"`
-	ErrorLogPath    string `json:"error_log_path"`
-	EnableReusePort bool   `json:"enable_reuse_port"`
-	HTTPOnly        bool   `json:"http_only,omitempty"`
+	Domain             string `json:"domain"`
+	WPDomain           string `json:"wp_domain,omitempty"`
+	WorkerProcesses    int    `json:"worker_processes"`
+	UpstreamName       string `json:"upstream_name,omitempty"`
+	UpstreamHost       string `json:"upstream_host"`
+	UpstreamPorts      []int  `json:"upstream_ports"`
+	UpstreamKeepalive  int    `json:"upstream_keepalive,omitempty"`
+	OpenFileCacheMax   int    `json:"open_file_cache_max,omitempty"`
+	OpenFileCacheValid string `json:"open_file_cache_valid,omitempty"`
+	UploadAliasDir     string `json:"upload_alias_dir"`
+	CertBaseDir        string `json:"cert_base_dir"`
+	WelcomeRootDir     string `json:"welcome_root_dir,omitempty"`
+	DefaultSSLCert     string `json:"default_ssl_cert,omitempty"`
+	DefaultSSLKey      string `json:"default_ssl_key,omitempty"`
+	WPWebRoot          string `json:"wp_web_root"`
+	WPPHPFPMAdr        string `json:"wp_php_fpm_addr"`
+	MediaRateAfter     string `json:"media_rate_after"`
+	MediaLimitRate     string `json:"media_limit_rate"`
+	AccessLogPath      string `json:"access_log_path"`
+	ErrorLogPath       string `json:"error_log_path"`
+	EnableReusePort    bool   `json:"enable_reuse_port"`
+	HTTPOnly           bool   `json:"http_only,omitempty"`
 }
 
 // DefaultNginxConfigOptions returns Bluehost Ashburn (vps-8c-16g) 6-worker production defaults.
@@ -212,19 +215,38 @@ func RenderMainNginxConf(opts NginxConfigOptions) ([]byte, error) {
 	b.WriteString("                    '\"$http_user_agent\" \"$http_x_forwarded_for\" rt=$request_time';\n")
 	fmt.Fprintf(&b, "    access_log %s main buffer=64k flush=5s;\n\n", opts.AccessLogPath)
 
+	openFileCacheMax := opts.OpenFileCacheMax
+	if openFileCacheMax <= 0 {
+		if opts.WorkerProcesses <= 6 {
+			openFileCacheMax = 4000
+		} else {
+			openFileCacheMax = 10000
+		}
+	}
+	openFileCacheValid := strings.TrimSpace(opts.OpenFileCacheValid)
+	if openFileCacheValid == "" {
+		if opts.WorkerProcesses <= 6 {
+			openFileCacheValid = "120s"
+		} else {
+			openFileCacheValid = "30s"
+		}
+	}
+
 	b.WriteString("    sendfile on;\n")
 	b.WriteString("    sendfile_max_chunk 2m;\n")
 	b.WriteString("    aio threads;\n")
 	b.WriteString("    directio 8m;\n")
 	b.WriteString("    tcp_nopush on;\n")
 	b.WriteString("    tcp_nodelay on;\n")
-	b.WriteString("    keepalive_timeout 65;\n")
+	b.WriteString("    keepalive_timeout 65s;\n")
+	b.WriteString("    keepalive_requests 10000;\n")
+	b.WriteString("    reset_timedout_connection on;\n")
 	b.WriteString("    types_hash_max_size 2048;\n")
 	b.WriteString("    server_tokens off;\n")
 	b.WriteString("    client_max_body_size 1m;\n\n")
 
-	b.WriteString("    open_file_cache max=10000 inactive=60s;\n")
-	b.WriteString("    open_file_cache_valid 30s;\n")
+	fmt.Fprintf(&b, "    open_file_cache max=%d inactive=60s;\n", openFileCacheMax)
+	fmt.Fprintf(&b, "    open_file_cache_valid %s;\n", openFileCacheValid)
 	b.WriteString("    open_file_cache_min_uses 2;\n")
 	b.WriteString("    open_file_cache_errors on;\n\n")
 
@@ -242,7 +264,8 @@ func RenderMainNginxConf(opts NginxConfigOptions) ([]byte, error) {
 	b.WriteString("    gzip_comp_level 5;\n")
 	b.WriteString("    gzip_min_length 256;\n")
 	b.WriteString("    gzip_buffers 16 8k;\n")
-	b.WriteString("    gzip_types text/plain text/css application/json application/ld+json application/javascript text/javascript application/xml text/xml image/svg+xml;\n\n")
+	b.WriteString("    gzip_http_version 1.1;\n")
+	b.WriteString("    gzip_types text/plain text/css application/json application/ld+json application/javascript text/javascript application/xml text/xml application/xml+rss image/svg+xml image/x-icon;\n\n")
 
 	b.WriteString("    # Outer socket flood shields (HTTP 429)\n")
 	b.WriteString("    limit_req_zone $binary_remote_addr zone=auth_flood:10m rate=10r/s;\n")
@@ -281,17 +304,27 @@ func RenderGrispSiteConf(opts NginxConfigOptions) ([]byte, error) {
 	b.WriteString("# Primary Grisp Multi-Worker Site Configuration (NGINX 1.30.6 Stable + HTTP/3 + X-Accel-Redirect)\n")
 	b.WriteString("# Generated by Grabtaculous v1.1.0 (ADR-005 / GRAB v1.1.0 --trusted-proxy 172.16.0.0/12,127.0.0.1)\n\n")
 
+	keepalive := opts.UpstreamKeepalive
+	if keepalive <= 0 {
+		keepalive = len(opts.UpstreamPorts) * 32
+		if keepalive < 64 {
+			keepalive = 64
+		}
+	}
+
 	fmt.Fprintf(&b, "upstream %s {\n", opts.UpstreamName)
 	b.WriteString("    least_conn;\n")
 	for _, p := range opts.UpstreamPorts {
 		fmt.Fprintf(&b, "    server %s:%d max_fails=2 fail_timeout=5s;\n", opts.UpstreamHost, p)
 	}
-	b.WriteString("    keepalive 192;\n")
+	fmt.Fprintf(&b, "    keepalive %d;\n", keepalive)
 	b.WriteString("    keepalive_requests 10000;\n")
 	b.WriteString("    keepalive_timeout 60s;\n")
 	b.WriteString("}\n\n")
 
 	if isDefaultMode {
+		b.WriteString("# Reusable HTTP/3 + X-Accel-Redirect route engine pre-staged in /etc/nginx/conf.d/grisp-locations.inc\n")
+		b.WriteString("# Ready-to-enable HTTPS/HTTP3 domain template: /etc/nginx/sites-available/grisp-domain.conf.template\n\n")
 		b.WriteString("# Catch-all HTTP (Port 80): drop unconfigured public domains and direct IP requests immediately\n")
 		b.WriteString("server {\n")
 		b.WriteString("    listen 80 default_server;\n")
@@ -397,6 +430,73 @@ func RenderGrispSiteConf(opts NginxConfigOptions) ([]byte, error) {
 	b.WriteString("    add_header Referrer-Policy \"strict-origin-when-cross-origin\" always;\n\n")
 
 	writeGrispProxyLocations(&b, opts)
+	b.WriteString("}\n")
+	return []byte(b.String()), nil
+}
+
+// RenderGrispLocationsInc emits the reusable /etc/nginx/conf.d/grisp-locations.inc include snippet
+// containing all 9 tuned Grisp proxy, flood-shield, WebSocket, webhook, and X-Accel-Redirect routes.
+func RenderGrispLocationsInc(opts NginxConfigOptions) ([]byte, error) {
+	if err := ValidateNginxOptions(&opts); err != nil {
+		return nil, err
+	}
+	var b strings.Builder
+	b.WriteString("# Reusable Grisp Production Route Engine (NGINX 1.30.x + HTTP/3 + X-Accel-Redirect)\n")
+	b.WriteString("# Included by enabled domain server blocks (see /etc/nginx/sites-available/grisp-domain.conf.template)\n\n")
+	writeGrispProxyLocations(&b, opts)
+	return []byte(b.String()), nil
+}
+
+// RenderGrispDomainTemplateConf emits a ready-to-enable HTTP/3 + TLS domain virtual host template
+// referencing /etc/nginx/conf.d/grisp-locations.inc.
+func RenderGrispDomainTemplateConf(opts NginxConfigOptions) ([]byte, error) {
+	if err := ValidateNginxOptions(&opts); err != nil {
+		return nil, err
+	}
+	dom := opts.Domain
+	if dom == "_" {
+		dom = "example.com"
+	}
+	serverName := fmt.Sprintf("%s www.%s", dom, dom)
+	reuseSuffix := ""
+	if opts.EnableReusePort {
+		reuseSuffix = " reuseport"
+	}
+	certFullchain := fmt.Sprintf("%s/%s/fullchain.pem", opts.CertBaseDir, dom)
+	certPrivkey := fmt.Sprintf("%s/%s/privkey.pem", opts.CertBaseDir, dom)
+
+	var b strings.Builder
+	b.WriteString("# Ready-to-Enable Grisp Domain Site Template (NGINX 1.30.x HTTP/3 + X-Accel-Redirect)\n")
+	b.WriteString("# Copy to /etc/nginx/sites-available/<domain>.conf, replace domain/cert paths, and symlink into sites-enabled/\n\n")
+	b.WriteString("server {\n")
+	b.WriteString("    listen 80;\n")
+	b.WriteString("    listen [::]:80;\n")
+	fmt.Fprintf(&b, "    server_name %s;\n", serverName)
+	b.WriteString("    location /.well-known/acme-challenge/ {\n")
+	b.WriteString("        root /var/www/certbot;\n")
+	b.WriteString("    }\n")
+	b.WriteString("    location / {\n")
+	b.WriteString("        return 301 https://$host$request_uri;\n")
+	b.WriteString("    }\n")
+	b.WriteString("}\n\n")
+
+	b.WriteString("server {\n")
+	fmt.Fprintf(&b, "    listen 443 quic%s;\n", reuseSuffix)
+	fmt.Fprintf(&b, "    listen [::]:443 quic%s;\n", reuseSuffix)
+	b.WriteString("    listen 443 ssl;\n")
+	b.WriteString("    listen [::]:443 ssl;\n")
+	b.WriteString("    http2 on;\n")
+	fmt.Fprintf(&b, "    server_name %s;\n\n", serverName)
+	fmt.Fprintf(&b, "    ssl_certificate %s;\n", certFullchain)
+	fmt.Fprintf(&b, "    ssl_certificate_key %s;\n", certPrivkey)
+	b.WriteString("    quic_retry on;\n")
+	b.WriteString("    quic_gso on;\n")
+	b.WriteString("    ssl_early_data off;\n\n")
+	b.WriteString("    add_header Alt-Svc 'h3=\":443\"; ma=86400' always;\n")
+	b.WriteString("    add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;\n")
+	b.WriteString("    add_header X-Content-Type-Options \"nosniff\" always;\n")
+	b.WriteString("    add_header Referrer-Policy \"strict-origin-when-cross-origin\" always;\n\n")
+	b.WriteString("    include /etc/nginx/conf.d/grisp-locations.inc;\n")
 	b.WriteString("}\n")
 	return []byte(b.String()), nil
 }

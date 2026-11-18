@@ -2,17 +2,17 @@
 
 ![Built with GRAB v1.1.0](docs/badges/built-with-grab.svg)
 ![GRAB Ecosystem Step 5 — Grabtaculous](docs/badges/ecosystem-step-5.svg)
-![Release v1.1.0 — Complete](docs/badges/release-v1.1.0.svg)
+![Release v1.1.1 — Complete](docs/badges/release-v1.1.1.svg)
 
 **Grabtaculous** is the Multi-Server Supervisor Daemon, `--read-only` Container & 1-Click App Marketplace Orchestrator, Zero-Downtime `Grisp` Rollout Engine, and Pre-Deploy Snapshot Rollback System for **Step 5 of the Post-1.0 GRAB Ecosystem**.
 
-- **Current Status:** `v1.1.0` Complete on `origin` & `stable` (Plain-English Walkthrough: [`Grabtaculous-v1.1.0-Guide.pdf`](docs/releases/pdf/Grabtaculous-v1.1.0-Guide.pdf) · Specs: [`GRABTACULOUS-SPEC-110.md`](specifications/GRABTACULOUS-SPEC-110.md), [`GRABTACULOUS-SPEC-100.md`](specifications/GRABTACULOUS-SPEC-100.md) · VPS Playbook: [`vps-starter-kit.md`](vps-starter-kit.md)).
+- **Current Status:** `v1.1.1` Complete on `origin` & `stable` (Plain-English Walkthrough: [`Grabtaculous-v1.1.1-Guide.pdf`](docs/releases/pdf/Grabtaculous-v1.1.1-Guide.pdf) · Specs: [`GRABTACULOUS-SPEC-110.md`](specifications/GRABTACULOUS-SPEC-110.md), [`GRABTACULOUS-SPEC-100.md`](specifications/GRABTACULOUS-SPEC-100.md) · VPS Playbooks: [`vps-starter-kit.md`](vps-starter-kit.md), [`VPS-DEPLOY-TEST-FIRST.md`](VPS-DEPLOY-TEST-FIRST.md)).
 - **Development Repo (`origin`):** `https://github.com/urbanspress/grabtaculous.progress`
 - **Production Release Repo (`stable`):** `https://github.com/urbanspress/grabtaculous.stable`
 
 ---
 
-## Core Architecture Pillars (`v1.1.0`)
+## Core Architecture Pillars (`v1.1.1`)
 
 1. **Zero Public Admin Surface (`ADR-005`, `ADR-017`):**
    - `grabtaculousd` runs exclusively on loopback (`127.0.0.1`) or Unix sockets on managed VPS hosts and communicates with **Gashboard** strictly over encrypted SSH—eliminating public panel login pages entirely.
@@ -34,17 +34,17 @@
 | **Flagship Zero-Plugin CMS** | `urbanspress/grablab-cms` | `>= v1.0.1 (< v2.0.0)` | 1-click CMS stack with `--read-only` Compose contract |
 | **Exclusive `mode: "visual"` Theme & Studio** | `urbanspress/grex-builder` | `>= v1.0.0 (< v2.0.0)` | Auto-wired exclusive visual theme & `/static/grex/` assets |
 | **Autonomous Design, Content & SEO Agent** | `urbanspress/groxy-ai` | `>= v1.0.0 (< v2.0.0)` | Optional AI stack & `Site DNA` snapshot payloads |
-| **Scaffolder, Orchestrator & Discreet VPS Panel** | `urbanspress/grabman`, `urbanspress/grabtaculous`, `urbanspress/gashboard` | `>= v0.1.0 (< v2.0.0)` (`v1.1.0`) | Lockfile verification, `--read-only` orchestration, NGINX `1.30.6` HTTP/3, VPS profiles & rollback |
+| **Scaffolder, Orchestrator & Discreet VPS Panel** | `urbanspress/grabman`, `urbanspress/grabtaculous`, `urbanspress/gashboard` | `>= v0.1.0 (< v2.0.0)` (`v1.1.1`) | Lockfile verification, `--read-only` orchestration, NGINX `1.30.6` HTTP/3, `--profile auto` & rollback |
 
 ---
 
-## Quick Start (`v1.1.0`)
+## Quick Start (`v1.1.1`)
 
-Build or install the static zero-dependency binary (`CGO_ENABLED=0`), deploy a hardened `--read-only` stack, render NGINX `1.30.6` HTTP/3 + VPS hardware profiles, migrate nodes, and manage zero-downtime rollouts and atomic snapshot rollbacks:
+Build or install the static zero-dependency binary (`CGO_ENABLED=0`), auto-detect VPS hardware, deploy a hardened `--read-only` stack, render NGINX `1.30.6` HTTP/3 + VPS hardware profiles, migrate nodes, and manage zero-downtime rollouts and atomic snapshot rollbacks:
 
 ```bash
 # Build static binary cleanly from source (pure Go stdlib, zero external dependencies)
-CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.Version=1.1.0" -o grabtaculous ./cmd/grabtaculous
+CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.Version=1.1.1" -o grabtaculous ./cmd/grabtaculous
 
 # Browse curated 1-click blueprints
 grabtaculous catalog list
@@ -53,10 +53,11 @@ grabtaculous catalog inspect grablab-grex-bundle
 # Deploy a locked-down --read-only stack + Caddy automatic HTTPS
 grabtaculous deploy grablab-grex-bundle --dir ./my-site --domain shop.example.com --edge-proxy caddy
 
-# Render official NGINX 1.30.6 HTTP/3 + X-Accel-Redirect configs & Bluehost Ashburn vps-8c-16g stack
+# Gate 1 & Gate 2: Auto-detect live VPS hardware + render official NGINX 1.30.6 & Compose configs (--profile auto)
+grabtaculous profile detect --json
 grabtaculous edge bootstrap-plan --codename noble --json
-grabtaculous edge render --profile vps-8c-16g --domain bookstore.example.com --wp-domain blog.bookstore.example.com --out-dir ./edge-out
-grabtaculous profile render vps-8c-16g --domain bookstore.example.com --out-dir ./vps-stack
+grabtaculous edge render --profile auto --domain bookstore.example.com --wp-domain blog.bookstore.example.com --out-dir ./edge-out
+grabtaculous profile render auto --domain bookstore.example.com --out-dir ./vps-stack
 
 # Export & verify/import SHA-256 node migration bundle (Contabo -> Bluehost, 15 GB NVMe reserve guarded)
 grabtaculous migrate-export --dir ./contabo-site --out ./contabo-to-bluehost.tar.gz --source-profile vps-6c-12g --target-profile vps-8c-16g
@@ -78,7 +79,8 @@ grabtaculous daemon --listen 127.0.0.1:9440 --state-dir ./.grabtaculous
 
 - [Agent Rules (`AGENTS.md`)](AGENTS.md)
 - [Engineering Invariants (`GRABTACULOUS-EXPERT.md`)](GRABTACULOUS-EXPERT.md)
-- [Plain-English Release Guide (`Grabtaculous-v1.1.0-Guide.pdf`)](docs/releases/pdf/Grabtaculous-v1.1.0-Guide.pdf)
+- [5-Gate Hardware & Pre-Deploy Protocol (`VPS-DEPLOY-TEST-FIRST.md`)](VPS-DEPLOY-TEST-FIRST.md)
+- [Plain-English Release Guide (`Grabtaculous-v1.1.1-Guide.pdf`)](docs/releases/pdf/Grabtaculous-v1.1.1-Guide.pdf)
 - [Master VPS Starter Kit & Scale-Up Playbook (`vps-starter-kit.md`)](vps-starter-kit.md)
 - [`v1.1.0` Feature Release Specification (`specifications/GRABTACULOUS-SPEC-110.md`)](specifications/GRABTACULOUS-SPEC-110.md)
 - [`v1.0.0` Production Freeze Specification (`specifications/GRABTACULOUS-SPEC-100.md`)](specifications/GRABTACULOUS-SPEC-100.md)

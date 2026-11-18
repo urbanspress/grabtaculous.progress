@@ -2,6 +2,20 @@
 
 All notable changes to **Grabtaculous** (Step 5 Multi-Server Supervisor, `--read-only` Container Orchestrator, Curated 1-Click Marketplace & Zero-Downtime Rollout Engine) are documented in this file.
 
+## [v1.1.1] — 2026-11-18
+
+### Universal Zero-Shell VPS Hardware Auto-Detection, `--profile auto` & Mandatory 5-Gate Pre-Deploy Verification (`PATCH 1.1.x`)
+- **Zero-Shell Native Hardware Auto-Detection (`internal/compose/detect.go`, `detect_unix.go`, `detect_windows.go`):**
+  - Added `DetectHostHardware`, `SelectOptimalProfile`, `DetectAndSelectProfile`, and `ResolveProfile` probing logical vCPUs (`/proc/cpuinfo` / `runtime.NumCPU()`), physical RAM (`/proc/meminfo` / `GlobalMemoryStatusEx`), and root NVMe disk capacity (`syscall.Statfs("/")` / `GetDiskFreeSpaceExW`) with zero `sh -c` calls (`ADR-017`).
+  - Added `grabtaculous profile detect [--vcpus N --ram-mb N --disk-gb N --free-disk-gb N] [--json]` and `--profile auto` support across both `grabtaculous profile render [auto|<id>]` and `grabtaculous edge render --profile auto`, enforcing the `>= 15 GB` free NVMe / `<= 92%` usage reserve guard (`GRABTAC-E701`).
+- **Tuned Profile & Edge Sizing (`internal/compose/profiles.go`, `internal/edge/nginx_gen.go`):**
+  - Adjusted `vps-8c-24g` / `vps-8c-32g` to `6` Grisp workers (`127.0.0.1:8765–8770`, `keepalive 192;`), `vps-16c-64g` to `12` Grisp workers (`127.0.0.1:8765–8776`, `keepalive 384;`, `grex-builder-studio` on `:8777` without port collision), and `vps-6c-12g` to `4` Grisp workers (`127.0.0.1:8765–8768`, `keepalive 128;`, `open_file_cache max=4000; open_file_cache_valid 120s;`).
+  - Added reusable `etc/nginx/conf.d/grisp-locations.inc` and `etc/nginx/sites-available/grisp-domain.conf.template`, `keepalive_requests 10000;`, `reset_timedout_connection on;`, `gzip_http_version 1.1;`, and PostgreSQL 18 `wal_compression = zstd` / `io_method = worker` / `io_workers`.
+- **`GRAB-E210` StrictJSON & `grabman doctor --strict` Loopback CIDR Compliance:**
+  - Enforced zero unknown fields in `deploy/grab.platform.json` (eliminating unknown `"count"` under `"workers"`) and loopback-only `"allowed_cidrs": ["127.0.0.1/32", "::1/128"]` so `grabman doctor --strict` and `grab check --diagnostics production` pass with zero RFC-1918 IP findings.
+- **Mandatory 5-Gate Verification Protocol (`VPS-DEPLOY-TEST-FIRST.md`):**
+  - Documented the 5-Gate hardware & pre-deploy test-first runbook at [`VPS-DEPLOY-TEST-FIRST.md`](VPS-DEPLOY-TEST-FIRST.md) (mirrored at [`docs/VPS-DEPLOY-TEST-FIRST.md`](docs/VPS-DEPLOY-TEST-FIRST.md)), verified live across all 5 gates on Contabo (`vps-6c-12g`, `4` workers, `nginx/1.30.6`).
+
 ## [v1.1.0] — 2026-11-18
 
 ### NGINX `1.30.6` (HTTP/3 + `X-Accel-Redirect` + Backblaze B2), Multi-Worker Hardware Profiles, Node Migration Engine & SearXNG Blueprint (`GRABTACULOUS-SPEC-110`)

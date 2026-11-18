@@ -175,7 +175,7 @@ func TestGrabtaculousCLIEndToEnd(t *testing.T) {
 
 	// 1. version --json
 	out, code := runGrabtacCLI(t, bin, "version", "--json")
-	if code != 0 || !strings.Contains(out, `"version": "1.1.0"`) || !strings.Contains(out, `"schema_version": "1.0.0"`) {
+	if code != 0 || !strings.Contains(out, `"version": "1.1.1"`) || !strings.Contains(out, `"schema_version": "1.0.0"`) {
 		t.Fatalf("version --json failed (code=%d): %s", code, out)
 	}
 

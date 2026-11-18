@@ -1,7 +1,7 @@
 # GRABTACULOUS-SPEC-110: Grabtaculous `v1.1.0` — NGINX `1.30.6` (HTTP/3 + `X-Accel-Redirect` + Backblaze B2), Multi-Worker Hardware Profiles, Node Migration Engine & SearXNG Blueprint
 
-- **Status:** Complete (Released `v1.1.0` — Backwards-Compatible Minor Feature Release)
-- **Target Release:** `v1.1.0` (`MAJOR.MINOR.PATCH` — Additive NGINX `1.30.6` Edge Orchestration, `X-Accel-Redirect` + `aio threads;` + Backblaze B2 Offload, Hardware-Adaptive VPS Profiles, 15 GB NVMe Reserve Guard, Contabo -> Bluehost Node Migration Engine, `vps-starter-kit.md`, & Curated `searxng` / `wordpress-fpm` Companion Blueprints)
+- **Status:** Complete (Released `v1.1.0`; `v1.1.1` `PATCH 1.1.x` Universal Hardware Auto-Detection & 5-Gate Pre-Deploy Verification Complete)
+- **Target Release:** `v1.1.0` / `v1.1.1` (`MAJOR.MINOR.PATCH` — Additive NGINX `1.30.6` Edge Orchestration, `X-Accel-Redirect` + `aio threads;` + Backblaze B2 Offload, Hardware-Adaptive VPS Profiles, Zero-Shell `profile detect` & `--profile auto`, 5-Gate [`VPS-DEPLOY-TEST-FIRST.md`](../VPS-DEPLOY-TEST-FIRST.md), 15 GB NVMe Reserve Guard, Contabo -> Bluehost Node Migration Engine, `vps-starter-kit.md`, & Curated `searxng` / `wordpress-fpm` Companion Blueprints)
 - **Foundational Baselines (Frozen `v1.x` Contracts Preserved):**
   - **GRAB:** `v1.1.0` (`urbanspress/grab` — `Grisp` multi-worker supervisor `--workers N --worker-base-port P`, `--trusted-proxy`, `/_health`, `/_ready`, `server.asset` `?v=<12-char-sha256>`, `use sockets` `Origin` checks, `use events` raw-byte HMAC webhooks, `ADR-005`, `ADR-017`, `ADR-024f`, `ADR-025g`, `ADR-027c`)
   - **Grex JS:** `v1.0.0` (`urbanspress/grex-js`)
@@ -51,10 +51,13 @@ Specifically, `v1.1.0` delivers six backwards-compatible capabilities without br
 
 ## 3. CLI & API Additions (100% Backwards-Compatible with `v1.0.0`)
 
-- **Version Strings:** `cmd/grabtaculous` `Version = "1.1.0"`, `internal/daemon` `DaemonVersion = "1.1.0"`, `schema_version` remains `"1.0.0"`.
-- **New CLI Commands:**
-  - `grabtaculous edge <bootstrap-plan|render> [--profile vps-8c-16g] [--domain <domain>] [--wp-domain <domain>] [--workers <n>] [--out-dir <dir>] [--upload-root <dir>] [--json]`
-  - `grabtaculous profile <list|render <id>> [--domain <domain>] [--out-dir <dir>] [--json]`
+- **Version Strings:** `cmd/grabtaculous` `Version = "1.1.1"`, `internal/daemon` `DaemonVersion = "1.1.1"`, `schema_version` remains `"1.0.0"`.
+- **New CLI Commands (`v1.1.0` + `v1.1.1` Patch Enhancements):**
+  - `grabtaculous edge <bootstrap-plan|render> [--profile auto|vps-8c-16g] [--domain <domain>] [--wp-domain <domain>] [--ports <p1,p2>] [--upstream-name <name>] [--http-only] [--vcpus N --ram-mb N --disk-gb N --free-disk-gb N] [--out-dir <dir>] [--upload-dir <dir>] [--json]`
+  - `grabtaculous profile <list|detect|render [auto|<id>]> [--profile <id>] [--domain <domain>] [--vcpus N --ram-mb N --disk-gb N --free-disk-gb N] [--out-dir <dir>] [--json]`
   - `grabtaculous migrate-export [--dir <ws>] [--out <bundle>] [--source-profile vps-6c-12g] [--target-profile vps-8c-16g] [--pg-dump <file>] [--mariadb-dump <file>] [--uploads-dir <dir>] [--grex-dir <dir>] [--json]`
   - `grabtaculous migrate-import --bundle <bundle> [--dir <ws>] [--target-profile vps-8c-16g] [--uploads-dir <dir>] [--grex-dir <dir>] [--verify-only] [--json]`
+- **`v1.1.1` (`PATCH 1.1.x`) Additions:**
+  - Universal zero-shell hardware auto-detection (`internal/compose/detect.go`, `detect_unix.go`, `detect_windows.go`) powering `grabtaculous profile detect` and `--profile auto` across all 5 VPS tiers (`vps-6c-12g`: 4 workers, `vps-8c-16g`/`24g`/`32g`: 6 workers, `vps-16c-64g`: 12 workers).
+  - Mandatory 5-Gate Verification Protocol documented in [`VPS-DEPLOY-TEST-FIRST.md`](../VPS-DEPLOY-TEST-FIRST.md) (and mirrored in [`docs/VPS-DEPLOY-TEST-FIRST.md`](../docs/VPS-DEPLOY-TEST-FIRST.md)), plus `GRAB-E210` StrictJSON & loopback-only `allowed_cidrs` (`["127.0.0.1/32", "::1/128"]`) passing `grabman doctor --strict` and `grab check`.
 - **Error Registry Parity:** Preserves `GRABTAC-E101..E701` identically (`GRABTAC-E401` for container/disk/edge policy failures, `GRABTAC-E701` for snapshot/migration bundle & disk reserve failures).

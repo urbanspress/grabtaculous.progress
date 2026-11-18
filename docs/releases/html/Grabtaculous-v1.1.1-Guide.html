@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Grabtaculous v1.1.1 — Plain-English Setup, Security &amp; Rollout Guide</title>
+  <style>
+    @page {
+      size: Letter;
+      margin: 0.72in 0.75in 0.75in 0.75in;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      line-height: 1.56;
+      font-size: 10.4pt;
+      margin: 0;
+      padding: 0;
+    }
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #064e3b 100%);
+      color: #f8fafc;
+      padding: 24px 28px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .hero .eyebrow {
+      font-size: 8.5pt;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: #6ee7b7;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .hero h1 {
+      font-size: 20pt;
+      margin: 0 0 8px 0;
+      line-height: 1.2;
+      color: #ffffff;
+    }
+    .hero p {
+      margin: 0;
+      color: #e2e8f0;
+      font-size: 10.2pt;
+    }
+    .badges {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.18);
+      border: 1px solid #34d399;
+      color: #ecfdf5;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 8.5pt;
+      font-weight: 600;
+    }
+    h2 {
+      font-size: 13pt;
+      color: #064e3b;
+      border-bottom: 2px solid #d1fae5;
+      padding-bottom: 4px;
+      margin-top: 22px;
+      margin-bottom: 10px;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 11pt;
+      color: #0f172a;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      page-break-after: avoid;
+    }
+    p { margin: 0 0 10px 0; }
+    ul, ol { margin: 6px 0 12px 20px; padding: 0; }
+    li { margin-bottom: 5px; }
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 12px 0 16px 0;
+    }
+    .card {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #f8fafc;
+      page-break-inside: avoid;
+    }
+    .card strong {
+      display: block;
+      color: #065f46;
+      margin-bottom: 4px;
+      font-size: 10pt;
+    }
+    .callout {
+      background: #ecfdf5;
+      border-left: 4px solid #10b981;
+      padding: 11px 14px;
+      border-radius: 0 8px 8px 0;
+      margin: 12px 0;
+      page-break-inside: avoid;
+    }
+    .callout strong { color: #065f46; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 16px 0;
+      font-size: 9.2pt;
+      page-break-inside: avoid;
+    }
+    th {
+      background: #0f172a;
+      color: #f8fafc;
+      text-align: left;
+      padding: 7px 9px;
+      font-weight: 600;
+    }
+    td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 9px;
+      vertical-align: top;
+    }
+    tr:nth-child(even) td { background: #f8fafc; }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 11px 14px;
+      border-radius: 8px;
+      font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+      font-size: 8.7pt;
+      line-height: 1.45;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      margin: 8px 0 12px 0;
+      page-break-inside: avoid;
+    }
+    code {
+      font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+      background: #f1f5f9;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-size: 8.8pt;
+      color: #0f172a;
+    }
+    .footer {
+      margin-top: 24px;
+      padding-top: 10px;
+      border-top: 1px solid #cbd5e1;
+      font-size: 8.5pt;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <div class="eyebrow">Step 5 of the Post-1.0 GRAB Ecosystem · Layer 2 Guide</div>
+    <h1>Grabtaculous v1.1.1 — Walkthrough &amp; Operations Guide</h1>
+    <p>Plain-English guide to running your stealth loopback server supervisor, deploying locked-down <code>--read-only</code> containers, shipping zero-downtime updates, and rolling back safely in one click.</p>
+    <div class="badges">
+      <span class="badge">Release v1.1.1 (PATCH 1.1.1 — Universal Hardware Auto-Detection & 5-Gate Verification)</span>
+      <span class="badge">Pure Go Stdlib · CGO_ENABLED=0</span>
+      <span class="badge">127.0.0.1 / SSH Stealth Only</span>
+      <span class="badge">Read-Only + SHA-256 Pinning</span>
+    </div>
+  </div>
+
+  <h2>1. What Grabtaculous Does (In Plain English)</h2>
+  <p>Once <code>grabman v1.0.0</code> scaffolds your site or stack, <strong>Grabtaculous</strong> is the server-side engine that actually launches, protects, updates, and rescues it on your VPS—without opening public admin ports that hackers scan for.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <strong>1. Stealth Private Control Channel</strong>
+      The supervisor daemon (<code>grabtaculousd</code>) only listens on private localhost (<code>127.0.0.1:9440</code>) or a local Unix socket. It actively refuses to bind to public <code>0.0.0.0</code>, so no management panel is ever exposed on the open internet. Your desktop <strong>Gashboard</strong> UI connects later through an encrypted SSH tunnel.
+    </div>
+    <div class="card">
+      <strong>2. Locked-Down Read-Only Apps</strong>
+      Every generated Docker Compose stack uses read-only root filesystems, drops all Linux capabilities, disables privilege escalation, runs under non-root user <code>65532:65532</code>, pins exact <code>@sha256:</code> digests (no mutable <code>:latest</code> tags), and binds app/DB ports only to <code>127.0.0.1</code>.
+    </div>
+    <div class="card">
+      <strong>3. Curated 1-Click App Marketplace</strong>
+      Deploy tested, cryptographically verified templates for the full <strong>GrabLab CMS + Grex Theme Builder + Groxy AI</strong> stack, standalone <code>Grisp</code> apps, private Postgres/MariaDB/Redis stores, analytics, S3 storage, automation, or webmail.
+    </div>
+    <div class="card">
+      <strong>4. Zero-Downtime Updates &amp; Safety Net</strong>
+      Before any code or config changes go live, Grabtaculous checks <code>grabman.lock</code>, validates <code>Site DNA</code>, checks your <code>.grab</code> syntax, takes an immutable SHA-256 snapshot, runs database migrations, swaps healthy workers only when <code>/_ready</code> returns HTTP 200, and auto-rolls back if anything breaks.
+    </div>
+  </div>
+
+  <h2>2. 5-Minute Quick Start Commands</h2>
+  <p>Grabtaculous ships as a single self-contained binary with the curated catalog already built inside it (zero external runtime dependencies).</p>
+
+  <pre># 1. Browse curated 1-click blueprints
+grabtaculous catalog list
+grabtaculous catalog inspect grablab-grex-bundle
+
+# 2. Deploy a hardened --read-only stack + Caddy automatic HTTPS edge config
+grabtaculous deploy grablab-grex-bundle --dir ./my-site --domain shop.example.com --edge-proxy caddy
+
+# 3. Audit any Compose file for read-only, non-root, digest pinning, and zero-secret rules
+grabtaculous audit --dir ./my-site --require-digest
+
+# 4. Run a 6-stage zero-downtime rollout with pre-flight + migration + snapshot safety
+grabtaculous rollout --dir ./my-site --entry src/app.grab --migrate-file migrations/001_init.grab
+
+# 5. Verify snapshots or roll back cleanly in one command
+grabtaculous snapshot list --dir ./my-site
+grabtaculous snapshot verify &lt;deploy-id&gt; --dir ./my-site
+grabtaculous rollback &lt;deploy-id&gt; --dir ./my-site
+
+# 6. Start the stealth loopback supervisor daemon for local/SSH-tunneled control
+grabtaculous daemon --listen 127.0.0.1:9440 --state-dir ./.grabtaculous</pre>
+
+  <h2>3. Choosing Your Public HTTPS Proxy Layer</h2>
+  <p>Your GRAB/<code>Grisp</code> workers and databases always stay tucked behind <code>127.0.0.1</code>. Only your chosen edge proxy faces visitors, forwarding verified traffic with <code>--trusted-proxy 127.0.0.1</code> so rate limits and logs always see real client IPs.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Option Flag</th>
+        <th>Generated File</th>
+        <th>Best For</th>
+        <th>HTTPS Certificate Handling</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>--edge-proxy caddy</code> (Default)</td>
+        <td><code>deploy/Caddyfile</code></td>
+        <td>Almost every VPS (fastest, simplest setup)</td>
+        <td>Built-in zero-config Let's Encrypt &amp; ZeroSSL auto-renewal</td>
+      </tr>
+      <tr>
+        <td><code>--edge-proxy nginx</code></td>
+        <td><code>deploy/nginx.conf</code></td>
+        <td>Teams already standardized on Nginx + Certbot</td>
+        <td>Certbot TLS paths + HTTP-to-HTTPS redirect + WebSocket/HTMX streaming headers</td>
+      </tr>
+      <tr>
+        <td><code>--edge-proxy cloudflare-tunnel</code></td>
+        <td><code>deploy/cloudflared.yml</code></td>
+        <td>Maximum stealth: zero open inbound firewall ports (80/443 closed)</td>
+        <td>Outbound encrypted tunnel through Cloudflare Edge TLS</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. Curated 1-Click Marketplace Catalog (<code>v1.1.1</code>)</h2>
+  <p>Every template below is embedded inside the <code>grabtaculous</code> binary and verified against a SHA-256 digest index (<code>GRABTAC-E201</code> blocks tampered templates automatically).</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Blueprint ID</th>
+        <th>Category</th>
+        <th>What It Provisions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>grablab-grex-bundle</code></td><td>Flagship Bundle</td><td>GrabLab CMS v1.0.1 + Grex Builder v1.0.0 + Groxy AI v1.0.0 sidecar</td></tr>
+      <tr><td><code>grablab-full-stack</code></td><td>Enterprise Stack</td><td>GrabLab CMS bundle paired with private loopback PostgreSQL 18</td></tr>
+      <tr><td><code>grab-grisp-app</code></td><td>Core App</td><td>Standalone hardened GRAB v1.1.0 <code>Grisp</code> worker application</td></tr>
+      <tr><td><code>postgres-18</code> / <code>mariadb-11-8</code> / <code>redis-standalone</code></td><td>Private Data Stores</td><td>Loopback-only (<code>127.0.0.1</code>) relational DB and rate-limit/session cache</td></tr>
+      <tr><td><code>analytics</code> / <code>object-storage</code> / <code>automation</code> / <code>webmail</code></td><td>Self-Hosted Companions</td><td>Plausible privacy analytics, Garage S3 media bucket, n8n workflows, SnappyMail</td></tr>
+      <tr><td><code>searxng</code></td><td>Groxy AI Companion</td><td>Hardened <code>--read-only</code> loopback (<code>127.0.0.1</code>) SearXNG private metasearch engine (<code>2026.10.1</code>)</td></tr>
+      <tr><td><code>wordpress-fpm</code></td><td>Companion CMS</td><td>Isolated <code>--read-only</code> WordPress <code>6.8.1</code> PHP-FPM + private MariaDB 11.8 behind NGINX 1.30.6</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5. How Zero-Downtime Rollouts &amp; Snapshot Rollbacks Protect You</h2>
+  <div class="callout">
+    <strong>Fail-Closed Safety Guarantee:</strong> Live visitor connections are never cut over to broken code. If <code>grabman solve --verify</code>, <code>grabman dna validate</code>, <code>grab check</code>, or container security auditing fails, Grabtaculous stops in Stage 1 without changing a single live file.
+  </div>
+  <ol>
+    <li><strong>Stage 1 — Preflight:</strong> Verifies lockfile hashes via <code>grabman solve --verify</code>, validates <code>Site DNA</code> via <code>grabman dna validate</code>, compiles your <code>.grab</code> entry cleanly with <code>grab check</code>, and audits Compose/secret hygiene.</li>
+    <li><strong>Stage 2 — Pre-Deploy Snapshot:</strong> Saves a SHA-256 manifest (<code>snapshot.json</code>) archiving <code>grabman.lock</code>, Compose/Caddy/Nginx configs, <code>src/</code>, <code>views/</code>, <code>theme/</code>, <code>public/</code>, <code>storage/site-dna.json</code>, and optional DB checkpoints.</li>
+    <li><strong>Stage 3 — Explicit Migration:</strong> Runs idempotent <code>grab migrate --allow-db &lt;alias&gt;:migrate</code> before shifting live traffic (<code>ADR-024f</code>).</li>
+    <li><strong>Stage 4 — Rolling <code>Grisp</code> Worker Swap:</strong> Starts new workers, polls <code>/_ready</code> until HTTP <code>200</code> + asset parity pass, switches the proxy upstream, and gently drains old workers over a 30-second window.</li>
+    <li><strong>Stage 5 &amp; 6 — Post-Cutover Smoke &amp; Auto-Rollback:</strong> Confirms live smoke URLs return healthy responses. On any mismatch, automatically restores every file byte-for-byte from the pre-deploy snapshot (<code>GRABTAC-E701</code> guarantees tamper checks before restore).</li>
+  </ol>
+
+  <h2>6. Ecosystem Compatibility (Step 5)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ecosystem Layer</th>
+        <th>Repository</th>
+        <th>Verified Compatible Range</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Core Language, VM &amp; Grisp Server</td><td><code>urbanspress/grab</code></td><td><code>&gt;= v1.1.0 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Reactive Frontend &amp; 20-Element Library</td><td><code>urbanspress/grex-js</code></td><td><code>&gt;= v1.0.0 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Flagship Zero-Plugin CMS</td><td><code>urbanspress/grablab-cms</code></td><td><code>&gt;= v1.0.1 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Exclusive Visual Theme &amp; Studio</td><td><code>urbanspress/grex-builder</code></td><td><code>&gt;= v1.0.0 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Autonomous Design, Content &amp; SEO Agent</td><td><code>urbanspress/groxy-ai</code></td><td><code>&gt;= v1.0.0 (&lt; v2.0.0)</code></td></tr>
+      <tr><td>Scaffolder, Orchestrator &amp; VPS Panel</td><td><code>urbanspress/grabman</code>, <code>grabtaculous</code>, <code>gashboard</code></td><td><code>&gt;= v1.0.0 (&lt; v2.0.0) (Grabtaculous v1.1.1)</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>7. What&rsquo;s New in v1.1.x: Official NGINX 1.30.6 HTTP/3, X-Accel-Redirect &amp; Backblaze B2</h2>
+  <p>Grabtaculous <code>v1.1.1</code> upgrades VPS edge networking from stock Ubuntu <code>nginx 1.24.x</code> to the official <code>nginx.org</code> <strong>NGINX 1.30.6 (Stable)</strong> repository, enabling native QUIC/HTTP/3, multi-threaded zero-copy audiobook downloads, and automatic protection against legacy Debian config traps.</p>
+  <div class="card-grid">
+    <div class="card">
+      <strong>Verified Host Bootstrapper (Zero Shell)</strong>
+      Downloads and pins official <code>nginx.org</code> PGP key <code>573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62</code> for Ubuntu 24.04 (<code>noble</code>), snapshots <code>/etc/nginx</code> first, removes legacy <code>nginx 1.24.x</code> &amp; <code>modules-enabled</code> / <code>snippets/fastcgi-php.conf</code> / <code>listen 443 ssl http2;</code>, configures <code>99-nginx-quic.conf</code> (<code>rmem_max=7500000</code>, <code>somaxconn=8192</code>), and opens UFW <code>443/tcp</code> + <code>443/udp</code> via structured <code>exec.CommandContext</code> argv calls.
+    </div>
+    <div class="card">
+      <strong>Zero-Copy Media &amp; Backblaze B2 Streaming</strong>
+      Configures <code>aio threads;</code> and two <code>internal;</code> <code>X-Accel-Redirect</code> endpoints: <code>/_protected_media/</code> for fast local NVMe streaming (<code>directio 8m;</code>) and <code>/_protected_b2/</code> to proxy 300&ndash;800 MB audiobooks directly from Backblaze B2 S3 with <code>proxy_buffering off;</code> and <code>proxy_max_temp_file_size 0;</code> (zero temp-disk bloat). Default <code>grisp.conf</code> drops unconfigured public domains with <code>return 444;</code> / <code>ssl_reject_handshake on;</code> and restricts the zero-<code>&lt;div&gt;</code> <strong>Grex JS v1.0.0</strong> animated Grisp Default Welcome &amp; Readiness Page strictly to private loopback (<code>localhost 127.0.0.1</code>), while named sites support both <code>--http-only</code> port <code>80</code> and HTTP/3 port <code>443</code> blocks.
+    </div>
+  </div>
+
+  <h2>8. Hardware-Adaptive VPS Profiles, 15 GB NVMe Guard &amp; Contabo &rarr; Bluehost Migration</h2>
+  <p>Render production Compose stacks, tuned PostgreSQL 18 <code>postgresql.conf</code>, Redis 8.2 <code>noeviction</code> limits, <code>reload-workers.sh</code> (<code>--sighup</code> &amp; <code>--recreate</code> gated on <code>/_ready === 200</code>), <code>grisp-stack.service</code>, and <code>grisp-backup.sh</code> (encrypted Backblaze B2 off-box sync). Every snapshot, rollout preflight, and migration bundle strictly enforces a <strong>&gt;= 15 GB free NVMe / &lt;= 92% usage reserve</strong> (<code>CheckDiskReserve</code>).</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Profile ID</th>
+        <th>Specs (vCPU / RAM / NVMe)</th>
+        <th>Grisp Loopback Pool</th>
+        <th>Target Role</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>vps-6c-12g</code></td><td>6 vCPU / 12 GB / 100 GB</td><td>4 workers (<code>8765&ndash;8768</code>)</td><td>Legacy Contabo Core source node</td></tr>
+      <tr><td><code>vps-8c-16g</code></td><td>8 vCPU / 16 GB / 200 GB</td><td>6 workers (<code>8765&ndash;8770</code>)</td><td>Primary Bluehost Ashburn production node</td></tr>
+      <tr><td><code>vps-8c-24g</code></td><td>8 vCPU / 24 GB / 300 GB</td><td>6 workers (<code>8765&ndash;8770</code>)</td><td>Scale-Up Tier 1 high-memory NVMe node</td></tr>
+      <tr><td><code>vps-8c-32g</code></td><td>8 vCPU / 32 GB / 400 GB</td><td>6 workers (<code>8765&ndash;8770</code>)</td><td>Scale-Up Tier 2 high-concurrency cluster node</td></tr>
+      <tr><td><code>vps-16c-64g</code></td><td>16 vCPU / 64 GB / 800 GB</td><td>12 workers (<code>8765&ndash;8776</code>)</td><td>Flagship enterprise multi-storefront NVMe node</td></tr>
+    </tbody>
+  </table>
+
+  <pre># Gate 1 &amp; 2: Auto-detect VPS hardware and render profile-matched edge + Compose configs
+grabtaculous profile detect --json
+grabtaculous edge bootstrap-plan --codename noble --json
+grabtaculous edge render --profile auto --out-dir ./edge-out
+grabtaculous profile render auto --domain bookstore.example.com --out-dir ./vps-stack
+
+# Export &amp; verify/import Contabo -&gt; Bluehost migration bundle (zero .env/.key secrets included)
+grabtaculous migrate-export --dir ./contabo-ws --out ./contabo-to-bluehost.tar.gz --source-profile vps-6c-12g --target-profile vps-8c-16g --pg-dump ./pg18.sql
+grabtaculous migrate-import --bundle ./contabo-to-bluehost.tar.gz --dir ./bluehost-ws --target-profile vps-8c-16g</pre>
+  <p>Full step-by-step cutover instructions are maintained in <code>vps-starter-kit.md</code> (mirrored at <code>docs/vps-starter-kit.md</code>) and <code>VPS-DEPLOY-TEST-FIRST.md</code>.</p>
+
+  <h2>9. Universal Zero-Shell Hardware Auto-Detection (<code>--profile auto</code>) &amp; 5-Gate Protocol</h2>
+  <p>Run <code>grabtaculous profile detect --json</code> and <code>--profile auto</code> on any VPS before touching containers or live traffic. Grabtaculous probes logical vCPUs, physical RAM, and root NVMe disk space natively without <code>sh -c</code> shell calls (<code>ADR-017</code>), enforces the mandatory <strong>&gt;= 15 GB free NVMe / &lt;= 92% usage reserve</strong> (<code>GRABTAC-E701</code>), and validates <code>deploy/grab.platform.json</code> with zero unknown fields (<code>GRAB-E210</code>) and loopback-only <code>allowed_cidrs</code> (<code>127.0.0.1/32</code>, <code>::1/128</code>) so <code>grabman doctor --strict</code> and <code>grab check</code> pass cleanly.</p>
+  <ol>
+    <li><strong>Gate 1 — Live Hardware &amp; NVMe Discovery:</strong> <code>grabtaculous profile detect --json</code> confirms CPU, RAM, and <code>"nvme_reserve_ok": true</code>.</li>
+    <li><strong>Gate 2 — Profile-Matched Rendering:</strong> <code>grabtaculous profile render auto</code> &amp; <code>grabtaculous edge render --profile auto</code> generate profile-tuned Compose, PostgreSQL 18, Redis 8.2, and NGINX <code>1.30.6</code> manifests.</li>
+    <li><strong>Gate 3 — Static Admission &amp; Syntax:</strong> <code>sudo nginx -t</code>, <code>grabtaculous audit --require-digest</code>, <code>grabman doctor --strict</code>, and <code>grabman solve --verify</code> exit <code>0</code>.</li>
+    <li><strong>Gate 4 — Zero-Downtime Rollout:</strong> Every worker <code>/_ready</code> endpoint returns HTTP <code>200</code> and <code>./deploy/reload-workers.sh --sighup</code> swaps cleanly.</li>
+    <li><strong>Gate 5 — Edge Security &amp; Headroom:</strong> Public unknown hosts drop (<code>444</code> / <code>ssl_reject_handshake on;</code>), <code>localhost</code> serves the Grex welcome page, and host RAM keeps <code>&gt;= 30&ndash;40%</code> free page-cache headroom.</li>
+  </ol>
+  <p>Complete 5-Gate instructions live in <code>VPS-DEPLOY-TEST-FIRST.md</code> (mirrored at <code>docs/VPS-DEPLOY-TEST-FIRST.md</code>).</p>
+
+  <div class="footer">
+    <strong>Grabtaculous v1.1.1</strong> · MIT License · Part of the Post-1.0 GRAB Ecosystem (<code>urbanspress/grabtaculous.progress</code> &amp; <code>urbanspress/grabtaculous.stable</code>). Controlled cleanly over encrypted SSH by <strong>Gashboard v1.0.0 / Groxy Desk v1.0.1</strong>.
+  </div>
+
+</body>
+</html>

@@ -36,6 +36,7 @@ BUNDLE_FILES = [
     "go.mod",
     "AGENTS.md",
     "GRABTACULOUS-EXPERT.md",
+    "VPS-DEPLOY-TEST-FIRST.md",
     "README.md",
     "CHANGELOG.md",
     "HANDOFF.md",

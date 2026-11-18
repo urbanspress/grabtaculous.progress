@@ -55,3 +55,15 @@ Completed Scope:
 - **Curated Marketplace Blueprints (`catalog/`):** Hardened `--read-only`, loopback-bound (`127.0.0.1`), digest-pinned **SearXNG** private metasearch (`catalog/companions/searxng.json`) and isolated **WordPress PHP-FPM + MariaDB 11.8** (`catalog/companions/wordpress-fpm.json`).
 - **Master Playbook:** [`vps-starter-kit.md`](../vps-starter-kit.md) & [`docs/vps-starter-kit.md`](vps-starter-kit.md).
 
+---
+
+## `v1.1.1` — Universal Zero-Shell VPS Hardware Auto-Detection (`--profile auto`), Mandatory 5-Gate Verification Protocol & `grabman doctor --strict` Parity
+
+**Status:** Complete ([`specifications/GRABTACULOUS-SPEC-110.md`](../specifications/GRABTACULOUS-SPEC-110.md) — Released `v1.1.1`, Guide: [`Grabtaculous-v1.1.1-Guide.pdf`](releases/pdf/Grabtaculous-v1.1.1-Guide.pdf), Protocol: [`VPS-DEPLOY-TEST-FIRST.md`](../VPS-DEPLOY-TEST-FIRST.md))
+
+Completed Scope:
+- **Zero-Shell Native Hardware Auto-Detection (`internal/compose/detect.go`, `detect_unix.go`, `detect_windows.go`):** Native CPU, physical RAM, and root NVMe disk probing (`grabtaculous profile detect [--json]`, `--profile auto` on `profile render` and `edge render`, plus `--vcpus` / `--ram-mb` / `--disk-gb` / `--free-disk-gb` dry-run flags) enforcing the `>= 15 GB` NVMe reserve guard (`GRABTAC-E701`).
+- **Mandatory 5-Gate Verification Protocol (`VPS-DEPLOY-TEST-FIRST.md`):** Documented and verified live across all 5 gates on Contabo (`vps-6c-12g`, 4 workers, NGINX `1.30.6`).
+- **StrictJSON & `grabman doctor --strict` Loopback CIDR Polish:** `RenderGrabPlatformJSON` uses loopback-only `"allowed_cidrs": ["127.0.0.1/32", "::1/128"]` with zero unknown fields (`GRAB-E210`), passing `grabman doctor --strict` and `grab check --diagnostics production` with zero warnings or RFC-1918 IP false positives.
+- **Reusable Edge Snippets:** Pre-stages `/etc/nginx/conf.d/grisp-locations.inc` and `/etc/nginx/sites-available/grisp-domain.conf.template` cleanly across all 5 hardware tiers.
+

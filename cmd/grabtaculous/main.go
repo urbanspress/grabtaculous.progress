@@ -26,7 +26,7 @@ import (
 )
 
 // Version identifies the release version (overridable via -ldflags "-X main.Version=...").
-var Version = "1.1.0"
+var Version = "1.1.1"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -90,8 +90,8 @@ Usage:
   grabtaculous snapshot <list|create|verify <deploy-id>> [--dir <path>] [--name <app>] [--state-dir <dir>] [--json]
   grabtaculous audit          [--dir <path>] [--file <compose.yml>] [--require-digest] [--json]
   grabtaculous status         [--dir <path>] [--state-dir <dir>] [--json]
-  grabtaculous edge           <bootstrap-plan|render> [--profile vps-8c-16g] [--domain <domain>] [--wp-domain <domain>] [--out-dir <dir>] [--json]
-  grabtaculous profile        <list|render <id>> [--domain <domain>] [--out-dir <dir>] [--json]
+  grabtaculous edge           <bootstrap-plan|render> [--profile auto|vps-8c-16g] [--domain <domain>] [--wp-domain <domain>] [--out-dir <dir>] [--json]
+  grabtaculous profile        <list|detect|render [auto|<id>]> [--profile <id>] [--domain <domain>] [--out-dir <dir>] [--json]
   grabtaculous migrate-export [--dir <ws>] [--out <bundle>] [--source-profile vps-6c-12g] [--target-profile vps-8c-16g] [--pg-dump <file>] [--mariadb-dump <file>] [--uploads-dir <dir>] [--grex-dir <dir>] [--json]
   grabtaculous migrate-import --bundle <bundle> [--dir <ws>] [--target-profile vps-8c-16g] [--uploads-dir <dir>] [--grex-dir <dir>] [--verify-only] [--json]
   grabtaculous version        [--json]
@@ -743,7 +743,7 @@ func writeError(asJSON bool, stdout, stderr io.Writer, err error, code int) int 
 
 func cmdEdge(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "Usage: grabtaculous edge <bootstrap-plan|render> [--profile vps-8c-16g] [--domain <domain>] [--wp-domain <domain>] [--out-dir <dir>] [--json]")
+		fmt.Fprintln(stderr, "Usage: grabtaculous edge <bootstrap-plan|render> [--profile auto|vps-8c-16g] [--domain <domain>] [--wp-domain <domain>] [--out-dir <dir>] [--json]")
 		return 2
 	}
 	sub := strings.TrimSpace(args[0])
@@ -755,6 +755,11 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		"upload-dir":    true,
 		"ports":         true,
 		"upstream-name": true,
+		"codename":      true,
+		"vcpus":         true,
+		"ram-mb":        true,
+		"disk-gb":       true,
+		"free-disk-gb":  true,
 	})
 	switch sub {
 	case "bootstrap-plan":
@@ -776,7 +781,7 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 	case "render":
 		fs := flag.NewFlagSet("edge render", flag.ContinueOnError)
 		fs.SetOutput(io.Discard)
-		profileID := fs.String("profile", "vps-8c-16g", "Hardware profile ID")
+		profileID := fs.String("profile", "auto", "Hardware profile ID or 'auto' to detect host hardware")
 		domain := fs.String("domain", "_", "Primary Grisp domain (defaults to '_' catch-all 444 + localhost welcome mode)")
 		wpDomain := fs.String("wp-domain", "", "Optional WordPress companion domain")
 		outDir := fs.String("out-dir", ".", "Target output directory")
@@ -784,11 +789,21 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		portsFlag := fs.String("ports", "", "Optional comma-separated Grisp worker ports (overrides profile ports)")
 		upstreamName := fs.String("upstream-name", "", "Optional NGINX upstream block name (defaults to grisp_backend)")
 		httpOnly := fs.Bool("http-only", false, "Emit clean port 80 HTTP site blocks without TLS certificates")
+		vcpus := fs.Int("vcpus", 0, "Dry-run override: simulated vCPU count for --profile auto")
+		ramMB := fs.Uint64("ram-mb", 0, "Dry-run override: simulated total RAM in MB for --profile auto")
+		diskGB := fs.Uint64("disk-gb", 0, "Dry-run override: simulated total disk in GB for --profile auto")
+		freeDiskGB := fs.Uint64("free-disk-gb", 0, "Dry-run override: simulated free disk in GB for --profile auto")
 		asJSON := fs.Bool("json", false, "Output JSON")
 		if err := fs.Parse(rest); err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 2)
 		}
-		prof, err := compose.GetProfile(*profileID)
+		override := &compose.HardwareOverride{
+			VCPUs:       *vcpus,
+			TotalRAMMB:  *ramMB,
+			TotalDiskGB: *diskGB,
+			FreeDiskGB:  *freeDiskGB,
+		}
+		prof, detected, err := compose.ResolveProfile(*profileID, override)
 		if err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 1)
 		}
@@ -823,6 +838,14 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		if err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 1)
 		}
+		locationsInc, err := edge.RenderGrispLocationsInc(opts)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		domainTemplateConf, err := edge.RenderGrispDomainTemplateConf(opts)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
 		welcomeHTML, err := edge.RenderGrispWelcomeHTML(opts)
 		if err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 1)
@@ -835,7 +858,9 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		}
 		written := []string{
 			"etc/nginx/nginx.conf",
+			"etc/nginx/conf.d/grisp-locations.inc",
 			"etc/nginx/sites-available/grisp.conf",
+			"etc/nginx/sites-available/grisp-domain.conf.template",
 			"etc/sysctl.d/99-nginx-quic.conf",
 			"var/www/grisp-welcome/index.html",
 			"var/www/grisp-welcome/grex/welcome.css",
@@ -846,7 +871,9 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 		}
 		contents := [][]byte{
 			mainConf,
+			locationsInc,
 			grispConf,
+			domainTemplateConf,
 			sysctlConf,
 			welcomeHTML,
 			edge.RenderGrispWelcomeCSS(),
@@ -869,7 +896,17 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 			}
 		}
 		if *asJSON {
-			writeJSON(stdout, map[string]any{"ok": true, "profile": prof.ID, "files_written": written})
+			payload := map[string]any{
+				"ok":            true,
+				"profile":       prof.ID,
+				"worker_count":  prof.GrispWorkers,
+				"auto_detected": detected != nil,
+				"files_written": written,
+			}
+			if detected != nil {
+				payload["hardware"] = detected.Hardware
+			}
+			writeJSON(stdout, payload)
 			return 0
 		}
 		fmt.Fprintf(stdout, "Rendered NGINX 1.30.6 edge configuration for profile %s into %s (%d files)\n", prof.ID, root, len(written))
@@ -883,13 +920,18 @@ func cmdEdge(args []string, stdout, stderr io.Writer) int {
 
 func cmdProfile(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "Usage: grabtaculous profile <list|render <id>> [--domain <domain>] [--out-dir <dir>] [--json]")
+		fmt.Fprintln(stderr, "Usage: grabtaculous profile <list|detect|render [auto|<id>]> [--profile <id>] [--domain <domain>] [--out-dir <dir>] [--json]")
 		return 2
 	}
 	sub := strings.TrimSpace(args[0])
 	rest := reorderFlags(args[1:], map[string]bool{
-		"domain":  true,
-		"out-dir": true,
+		"profile":      true,
+		"domain":       true,
+		"out-dir":      true,
+		"vcpus":        true,
+		"ram-mb":       true,
+		"disk-gb":      true,
+		"free-disk-gb": true,
 	})
 	switch sub {
 	case "list":
@@ -909,19 +951,102 @@ func cmdProfile(args []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 
-	case "render":
-		fs := flag.NewFlagSet("profile render", flag.ContinueOnError)
+	case "detect":
+		fs := flag.NewFlagSet("profile detect", flag.ContinueOnError)
 		fs.SetOutput(io.Discard)
-		domain := fs.String("domain", "bookstore.example.com", "Primary site domain")
-		outDir := fs.String("out-dir", ".", "Target workspace directory")
+		vcpus := fs.Int("vcpus", 0, "Dry-run override: simulated vCPU count")
+		ramMB := fs.Uint64("ram-mb", 0, "Dry-run override: simulated total RAM in MB")
+		diskGB := fs.Uint64("disk-gb", 0, "Dry-run override: simulated total disk in GB")
+		freeDiskGB := fs.Uint64("free-disk-gb", 0, "Dry-run override: simulated free disk in GB")
 		asJSON := fs.Bool("json", false, "Output JSON")
 		if err := fs.Parse(rest); err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 2)
 		}
-		if fs.NArg() != 1 {
-			return writeError(*asJSON, stdout, stderr, fmt.Errorf("usage: grabtaculous profile render <profile-id> [--domain <domain>] [--out-dir <dir>] [--json]"), 2)
+		res, err := compose.DetectAndSelectProfile(&compose.HardwareOverride{
+			VCPUs:       *vcpus,
+			TotalRAMMB:  *ramMB,
+			TotalDiskGB: *diskGB,
+			FreeDiskGB:  *freeDiskGB,
+		})
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
 		}
-		profID := fs.Arg(0)
+		if *asJSON {
+			payload := map[string]any{
+				"ok":                  res.NVMeReserveOK,
+				"simulated":           res.Simulated,
+				"hardware":            res.Hardware,
+				"profile_id":          res.ProfileID,
+				"worker_count":        res.WorkerCount,
+				"worker_ports":        res.WorkerPorts,
+				"memory_math":         res.MemoryMath,
+				"nvme_reserve_ok":     res.NVMeReserveOK,
+				"nvme_reserve_status": res.NVMeReserveStatus,
+				"profile":             res.Profile,
+			}
+			if !res.NVMeReserveOK {
+				payload["code"] = res.Hardware.DiskReserveCode
+				payload["error"] = res.Hardware.DiskReserveErr
+			}
+			writeJSON(stdout, payload)
+			if !res.NVMeReserveOK {
+				return 1
+			}
+			return 0
+		}
+		fmt.Fprintf(stdout, "Detected Host Hardware (%s/%s):\n", res.Hardware.OS, res.Hardware.Arch)
+		fmt.Fprintf(stdout, "  vCPUs:          %d\n", res.Hardware.VCPUs)
+		fmt.Fprintf(stdout, "  Physical RAM:   %d MB total (%d MB available)\n", res.Hardware.TotalRAMMB, res.Hardware.AvailableRAMMB)
+		fmt.Fprintf(stdout, "  Root Disk/NVMe: %d GB total, %d GB free (%.1f%% used)\n", res.Hardware.TotalDiskGB, res.Hardware.FreeDiskGB, res.Hardware.DiskUsedPercent)
+		fmt.Fprintf(stdout, "  NVMe Reserve:   %s\n", res.NVMeReserveStatus)
+		fmt.Fprintf(stdout, "Selected Profile: %s (%s)\n", res.ProfileID, res.Profile.Label)
+		fmt.Fprintf(stdout, "  Grisp Workers:  %d (%v, %s/worker = %d MB total)\n", res.WorkerCount, res.WorkerPorts, res.Profile.GrispMemoryLimit, res.MemoryMath.GrispTotalLimitMB)
+		fmt.Fprintf(stdout, "  PostgreSQL 18:  %d MB limit (shared_buffers=%s, effective_cache=%s, io_workers=%d)\n", res.MemoryMath.PostgresLimitMB, res.MemoryMath.PostgresSharedBuffers, res.MemoryMath.PostgresEffectiveCache, res.MemoryMath.PostgresIOWorkers)
+		fmt.Fprintf(stdout, "  Redis 8.2:      %d MB limit (--maxmemory %s --maxmemory-policy noeviction)\n", res.MemoryMath.RedisLimitMB, res.MemoryMath.RedisMaxMemory)
+		fmt.Fprintf(stdout, "  Groxy/Builder:  %d MB + %d MB (total stack limit %d MB; %d MB / %.1f%% host headroom)\n", res.MemoryMath.GroxyLimitMB, res.MemoryMath.GrexBuilderLimitMB, res.MemoryMath.TotalStackLimitMB, res.MemoryMath.HostHeadroomMB, res.MemoryMath.HostHeadroomPercent)
+		if !res.NVMeReserveOK {
+			return 1
+		}
+		return 0
+
+	case "render":
+		fs := flag.NewFlagSet("profile render", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		profileFlag := fs.String("profile", "", "Hardware profile ID or 'auto' to detect host hardware")
+		domain := fs.String("domain", "bookstore.example.com", "Primary site domain")
+		outDir := fs.String("out-dir", ".", "Target workspace directory")
+		vcpus := fs.Int("vcpus", 0, "Dry-run override: simulated vCPU count for --profile auto")
+		ramMB := fs.Uint64("ram-mb", 0, "Dry-run override: simulated total RAM in MB for --profile auto")
+		diskGB := fs.Uint64("disk-gb", 0, "Dry-run override: simulated total disk in GB for --profile auto")
+		freeDiskGB := fs.Uint64("free-disk-gb", 0, "Dry-run override: simulated free disk in GB for --profile auto")
+		asJSON := fs.Bool("json", false, "Output JSON")
+		if err := fs.Parse(rest); err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 2)
+		}
+		if fs.NArg() > 1 {
+			return writeError(*asJSON, stdout, stderr, fmt.Errorf("usage: grabtaculous profile render [auto|<profile-id>] [--profile <id>] [--domain <domain>] [--out-dir <dir>] [--json]"), 2)
+		}
+		targetProfile := strings.TrimSpace(*profileFlag)
+		if fs.NArg() == 1 {
+			if targetProfile != "" && !strings.EqualFold(targetProfile, fs.Arg(0)) {
+				return writeError(*asJSON, stdout, stderr, fmt.Errorf("conflicting profile arguments: positional %q and --profile %q", fs.Arg(0), targetProfile), 2)
+			}
+			targetProfile = fs.Arg(0)
+		}
+		if targetProfile == "" {
+			targetProfile = "auto"
+		}
+		override := &compose.HardwareOverride{
+			VCPUs:       *vcpus,
+			TotalRAMMB:  *ramMB,
+			TotalDiskGB: *diskGB,
+			FreeDiskGB:  *freeDiskGB,
+		}
+		prof, detected, err := compose.ResolveProfile(targetProfile, override)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		profID := prof.ID
 		composeYAML, err := compose.RenderProfileCompose(profID, *domain)
 		if err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 1)
@@ -930,6 +1055,14 @@ func cmdProfile(args []string, stdout, stderr io.Writer) int {
 			return writeError(*asJSON, stdout, stderr, err, 1)
 		}
 		pgConf, err := compose.RenderPostgresConf(profID)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		grabDataJSON, err := compose.RenderGrabDataJSON(profID)
+		if err != nil {
+			return writeError(*asJSON, stdout, stderr, err, 1)
+		}
+		grabPlatformJSON, err := compose.RenderGrabPlatformJSON(profID)
 		if err != nil {
 			return writeError(*asJSON, stdout, stderr, err, 1)
 		}
@@ -956,6 +1089,8 @@ func cmdProfile(args []string, stdout, stderr io.Writer) int {
 		}{
 			{"deploy/docker-compose.yml", composeYAML, 0o644},
 			{"deploy/postgres/postgresql.conf", pgConf, 0o644},
+			{"deploy/grab.data.json", grabDataJSON, 0o644},
+			{"deploy/grab.platform.json", grabPlatformJSON, 0o644},
 			{"deploy/reload-workers.sh", reloadSh, 0o755},
 			{"deploy/grisp-stack.service", unitFile, 0o644},
 			{"deploy/grisp-backup.sh", backupSh, 0o755},
@@ -968,14 +1103,24 @@ func cmdProfile(args []string, stdout, stderr io.Writer) int {
 			written = append(written, f.rel)
 		}
 		if *asJSON {
-			writeJSON(stdout, map[string]any{"ok": true, "profile": profID, "files_written": written})
+			payload := map[string]any{
+				"ok":            true,
+				"profile":       profID,
+				"worker_count":  prof.GrispWorkers,
+				"auto_detected": detected != nil,
+				"files_written": written,
+			}
+			if detected != nil {
+				payload["hardware"] = detected.Hardware
+			}
+			writeJSON(stdout, payload)
 			return 0
 		}
 		fmt.Fprintf(stdout, "Rendered hardened %s stack templates into %s (%d files)\n", profID, root, len(written))
 		return 0
 
 	default:
-		fmt.Fprintf(stderr, "Error: unknown profile subcommand %q (expected list or render)\n", sub)
+		fmt.Fprintf(stderr, "Error: unknown profile subcommand %q (expected list, detect, or render)\n", sub)
 		return 2
 	}
 }
