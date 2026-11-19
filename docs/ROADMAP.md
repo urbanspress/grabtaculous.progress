@@ -79,3 +79,15 @@ Completed Scope:
 - **Playbook Synchronization:** Aligned `vps-starter-kit.md` and `docs/vps-starter-kit.md` with WordPress 7.1.5 LTS.
 
 
+
+---
+
+## `v1.2.0` — Native Ubuntu `systemd` + PostgreSQL/Redis Deployment Mode (`--native-systemd`, Zero-Docker Option)
+
+**Status:** Planned
+
+Target Scope:
+- **Direct host deployment:** Add opt-in `--native-systemd` for operators who prioritize direct host performance and familiar `systemctl` administration. Ubuntu runs Grisp, PostgreSQL, Redis, and NGINX as native services. This mode requires neither Docker nor Compose YAML. The existing hardened container mode remains supported.
+- **Grisp worker units:** Use unprivileged `grisp-worker@1.service` through `grisp-worker@N.service`. Worker `i` binds to `127.0.0.1:(8765 + i - 1)`, with worker count and resource budgets determined by the host profile. Operators use `systemctl` for service status, restart, and reload, and `journalctl` for logs. Roll through workers one at a time and require `/_ready` before advancing.
+- **Private data services and NGINX edge:** Run native Ubuntu PostgreSQL and Redis on local sockets or loopback, with dedicated credentials and private data paths. NGINX terminates public HTTPS and proxies to the Grisp loopback upstreams using the existing trusted-proxy contract. Keep worker, database, cache, and management ports private.
+- **Future deployment verification:** Plan unit and NGINX validation, hardware-profile checks, readiness-gated rollout, and pre-deploy snapshot and restore tests under the existing [VPS verification protocol](../VPS-DEPLOY-TEST-FIRST.md). Review the milestone specification before implementation.
