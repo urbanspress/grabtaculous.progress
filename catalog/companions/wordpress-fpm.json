@@ -3,10 +3,16 @@
   "id": "wordpress-fpm",
   "name": "Isolated WordPress PHP-FPM + MariaDB 11.8 Companion",
   "category": "companion",
-  "version": "6.8.1",
+  "version": "7.1.5",
   "summary": "Hardened --read-only WordPress PHP-FPM companion isolated on 127.0.0.1:9000 behind NGINX 1.30.6 HTTP/3 and private MariaDB 11.8.",
   "recommended_edge_proxy": "nginx",
   "required_variables": [
+    {
+      "name": "WP_IMAGE",
+      "description": "WordPress container image (defaults to verified WordPress 7.1.5 LTS FPM Alpine)",
+      "required": false,
+      "default": "docker.io/library/wordpress:7.1-fpm-alpine@sha256:74fd3fffc4b3b0c40d4cc0803ec40fe1a7febf0437e96d55b9cbc9a4e54a1aae"
+    },
     {
       "name": "WP_DB_PASSWORD",
       "description": "WordPress MariaDB 11.8 user password supplied via secret manager",
@@ -32,7 +38,7 @@
     "services": [
       {
         "name": "wordpress-fpm",
-        "image": "docker.io/library/wordpress:6.8.1-php8.3-fpm-alpine@sha256:5c8e1f0a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6",
+        "image": "${WP_IMAGE:-docker.io/library/wordpress:7.1-fpm-alpine@sha256:74fd3fffc4b3b0c40d4cc0803ec40fe1a7febf0437e96d55b9cbc9a4e54a1aae}",
         "container_name": "grabtac-wordpress-fpm",
         "read_only": true,
         "user": "65532:65532",

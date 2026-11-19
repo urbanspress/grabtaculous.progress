@@ -1,6 +1,6 @@
 # GRAB Ecosystem Master VPS Starter Kit & Scale-Up Playbook (`vps-starter-kit.md`)
 
-**Target Architecture:** Official `nginx.org` NGINX `1.30.6` (Stable, HTTP/3 QUIC, `aio threads;`, `X-Accel-Redirect`) + Hardened `--read-only` Multi-Worker **GRAB `v1.1.0` (`Grisp`) + GrabLab CMS + Grex Theme Builder `v1.0.0` + Groxy AI `v1.8.0` + PostgreSQL 18 + Redis 8.2** + Optional Isolated **WordPress (`php-fpm` + `MariaDB 11.8`)** + **Backblaze B2** Offload & **>= 15 GB NVMe Safety Reserve**
+**Target Architecture:** Official `nginx.org` NGINX `1.30.6` (Stable, HTTP/3 QUIC, `aio threads;`, `X-Accel-Redirect`) + Hardened `--read-only` Multi-Worker **GRAB `v1.1.0` (`Grisp`) + GrabLab CMS + Grex Theme Builder `v1.0.0` + Groxy AI `v1.8.0` + PostgreSQL 18 + Redis 8.2** + Optional Isolated **WordPress 7.1.5 LTS (`php-fpm` + `MariaDB 11.8`)** + **Backblaze B2** Offload & **>= 15 GB NVMe Safety Reserve**
 
 > **Primary Production Target:** **Bluehost Ashburn (`vps-8c-16g`)** — `8 vCPU / 16 GB DDR5 RAM / 200 GB NVMe / 1 Gbit/s` on Ubuntu 24.04 LTS, replacing expiring **Contabo Core (`vps-6c-12g`)** (`6 vCPU / 12 GB RAM / 100 GB NVMe`, expiring **December 8, 2026**).  
 > **Mandatory Pre-Deploy Gate:** Run the 5-Gate hardware detection & verification protocol in [`VPS-DEPLOY-TEST-FIRST.md`](VPS-DEPLOY-TEST-FIRST.md) (`grabtaculous profile detect --json` & `--profile auto`) on every VPS before cutover.  

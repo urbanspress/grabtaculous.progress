@@ -2,6 +2,16 @@
 
 All notable changes to **Grabtaculous** (Step 5 Multi-Server Supervisor, `--read-only` Container Orchestrator, Curated 1-Click Marketplace & Zero-Downtime Rollout Engine) are documented in this file.
 
+## [v1.1.2] — 2026-11-18
+
+### WordPress 7.1.5 LTS Baseline Bump & Configurable `WP_IMAGE` Override (`PATCH 1.1.x`, `GRABTACULOUS-SPEC-112`)
+- **WordPress 7.1.5 LTS Baseline (`catalog/companions/wordpress-fpm.json`, `catalog/index.json`):**
+  - Updated the curated WordPress companion blueprint version to `7.1.5` and pinned image to `docker.io/library/wordpress:7.1-fpm-alpine@sha256:74fd3fffc4b3b0c40d4cc0803ec40fe1a7febf0437e96d55b9cbc9a4e54a1aae`.
+  - Added optional `WP_IMAGE` variable to `required_variables` with safe fallback to the pinned 7.1.5 digest, allowing operators to track latest releases (`WP_IMAGE=wordpress:fpm-alpine`) without code freeze bottlenecks.
+  - Updated `catalog/index.json` blueprint hash to `739e51454da008380b259cee17819ba690829db7a0da60c0693a61e8fefb89f1`.
+- **Playbook Synchronization:**
+  - Synchronized `vps-starter-kit.md` and `docs/vps-starter-kit.md` references with WordPress 7.1.5 LTS.
+
 ## [v1.1.1] — 2026-11-18
 
 ### Universal Zero-Shell VPS Hardware Auto-Detection, `--profile auto` & Mandatory 5-Gate Pre-Deploy Verification (`PATCH 1.1.x`)

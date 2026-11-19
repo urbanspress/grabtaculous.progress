@@ -67,3 +67,15 @@ Completed Scope:
 - **StrictJSON & `grabman doctor --strict` Loopback CIDR Polish:** `RenderGrabPlatformJSON` uses loopback-only `"allowed_cidrs": ["127.0.0.1/32", "::1/128"]` with zero unknown fields (`GRAB-E210`), passing `grabman doctor --strict` and `grab check --diagnostics production` with zero warnings or RFC-1918 IP false positives.
 - **Reusable Edge Snippets:** Pre-stages `/etc/nginx/conf.d/grisp-locations.inc` and `/etc/nginx/sites-available/grisp-domain.conf.template` cleanly across all 5 hardware tiers.
 
+---
+
+## `v1.1.2` — WordPress 7.1.5 LTS Baseline Bump & Configurable `WP_IMAGE` Override in Catalog Blueprint
+
+**Status:** Complete ([`specifications/GRABTACULOUS-SPEC-112.md`](../specifications/GRABTACULOUS-SPEC-112.md))
+
+Completed Scope:
+- **WordPress 7.1.5 LTS Baseline Bump (`catalog/companions/wordpress-fpm.json`, `catalog/index.json`):** Updated companion catalog definition to WordPress `7.1.5` (`wordpress:7.1-fpm-alpine@sha256:74fd3fffc4b3b0c40d4cc0803ec40fe1a7febf0437e96d55b9cbc9a4e54a1aae`), with SHA-256 integrity pinning.
+- **Configurable `WP_IMAGE` Variable:** Added optional `WP_IMAGE` variable in `required_variables` with safe fallback to the pinned 7.1.5 digest, allowing operators to track latest releases (`WP_IMAGE=wordpress:fpm-alpine`) without code freeze bottlenecks.
+- **Playbook Synchronization:** Aligned `vps-starter-kit.md` and `docs/vps-starter-kit.md` with WordPress 7.1.5 LTS.
+
+
